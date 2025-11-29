@@ -34,7 +34,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
 from reportlab.lib.units import inch
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -432,6 +432,65 @@ class ProfessionalReceiptGenerator:
         self.create_directories()
         self.clear_all_data()
 
+    def _color_for_school(self, school_name: str) -> tuple[int, int, int]:
+        """Derive a consistent color from the school name for logos."""
+        base = sum(ord(c) for c in school_name)
+        return (
+            80 + (base * 3) % 120,
+            80 + (base * 5) % 120,
+            120 + (base * 7) % 100,
+        )
+
+    def create_school_logo(self, school_name: str) -> str:
+        """Generate a simple shield-style logo using the school initials."""
+        initials = "".join(word[0].upper() for word in school_name.split()[:3]) or "S"
+        size = (140, 140)
+        bg_color = self._color_for_school(school_name)
+
+        img = Image.new("RGBA", size, (255, 255, 255, 0))
+        draw = ImageDraw.Draw(img)
+        draw.rounded_rectangle([0, 0, size[0], size[1]], radius=24, fill=bg_color)
+        draw.rectangle([16, 16, size[0]-16, size[1]-16], outline=(255, 255, 255, 220), width=3)
+
+        try:
+            font = ImageFont.truetype("DejaVuSans-Bold.ttf", 56)
+        except Exception:
+            font = ImageFont.load_default()
+
+        text_width, text_height = draw.textsize(initials, font=font)
+        draw.text(
+            ((size[0] - text_width) / 2, (size[1] - text_height) / 2 - 4),
+            initials,
+            font=font,
+            fill=(255, 255, 255, 255),
+        )
+
+        logo_path = os.path.join(self.receipts_dir, f"logo_{re.sub(r'[^A-Za-z0-9]', '_', school_name)[:40]}.png")
+        img.save(logo_path, format="PNG")
+        return logo_path
+
+    def create_registrar_signature(self, registrar_name: str, teacher_id: str) -> str:
+        """Create a quick script-style signature image for the registrar."""
+        width, height = 360, 120
+        img = Image.new("RGBA", (width, height), (255, 255, 255, 0))
+        draw = ImageDraw.Draw(img)
+
+        try:
+            script_font = ImageFont.truetype("DejaVuSerif-Italic.ttf", 34)
+        except Exception:
+            script_font = ImageFont.load_default()
+
+        text = registrar_name
+        text_width, text_height = draw.textsize(text, font=script_font)
+        draw.text(((width - text_width) / 2, (height - text_height) / 2 - 6), text, font=script_font, fill=(30, 58, 138))
+
+        # Add a light underline to mimic a hand signature line
+        draw.line([(40, height - 32), (width - 40, height - 32)], fill=(37, 99, 235), width=3)
+
+        sig_path = os.path.join(self.receipts_dir, f"signature_{teacher_id}.png")
+        img.save(sig_path, format="PNG")
+        return sig_path
+
     def create_directories(self):
         os.makedirs(self.receipts_dir, exist_ok=True)
 
@@ -727,17 +786,19 @@ class ProfessionalReceiptGenerator:
             synced_student_id = str(student_id).strip() if student_id else ""
             if not synced_student_id.isdigit() or len(synced_student_id) != 8:
                 synced_student_id = self.generate_student_style_id(fake)
-            school_address = fake.address().replace("\n", ", ")
-            school_domain = fake.domain_name()
+            street = fake.street_address()
+            school_address = f"{street}, {fake.city()}, {fake.state_abbr()} {fake.zipcode()[:5]}"
+            domain_root = fake.unique.domain_word()
+            school_domain = f"{domain_root}.edu"
+            school_phone = f"({fake.random_int(200, 989)}) {fake.random_int(200, 999):03d}-{fake.random_int(1000, 9999):04d}"
             teachers.append({
                 "teacher_name": clean_name(fake.name()),
                 "teacher_id": synced_student_id,
                 "school_name": school_name or fake.company(),
-                "school_id": f"S{fake.random_number(digits=6, fix_len=True)}",
                 "school_address": school_address,
-                "school_phone": fake.phone_number(),
+                "school_phone": school_phone,
                 "school_email": f"registrar@{school_domain}",
-                "school_website": f"https://{school_domain}",
+                "school_website": f"https://www.{school_domain}",
                 "academic_year": f"{datetime.now().year}-{datetime.now().year + 1}",
                 "registrar_name": clean_name(fake.name()),
                 "registrar_title": random.choice(["Registrar", "HR Manager", "HR Director"]),
@@ -748,7 +809,7 @@ class ProfessionalReceiptGenerator:
 
     def create_teacher_payslip_pdf(self, teacher_data):
         """Create a teacher pay slip PDF that mirrors student ID formatting."""
-        filename = f"TEACHER_PAYSLIP_{teacher_data['teacher_id']}_{teacher_data['school_id']}.pdf"
+        filename = f"TEACHER_PAYSLIP_{teacher_data['teacher_id']}.pdf"
         filepath = os.path.join(self.receipts_dir, filename)
 
         doc = SimpleDocTemplate(
@@ -814,7 +875,6 @@ class ProfessionalReceiptGenerator:
             ["Teacher Name:", teacher_data['teacher_name']],
             ["Teacher ID:", teacher_data['teacher_id']],
             ["School Name:", teacher_data['school_name']],
-            ["School ID:", teacher_data['school_id']],
             ["Pay Period:", f"{payment['pay_period_start']} - {payment['pay_period_end']}"],
             ["Bank Account:", payment['bank_account']],
         ], colWidths=[2*inch, 3.8*inch])
@@ -867,7 +927,7 @@ class ProfessionalReceiptGenerator:
     def create_teacher_id_card(self, teacher_data):
         """Create a compact teacher ID card that matches student-style IDs."""
         card_width, card_height = 3.375 * inch, 2.125 * inch
-        filename = f"TEACHER_ID_{teacher_data['teacher_id']}_{teacher_data['school_id']}.pdf"
+        filename = f"TEACHER_ID_{teacher_data['teacher_id']}.pdf"
         filepath = os.path.join(self.receipts_dir, filename)
 
         doc = SimpleDocTemplate(
@@ -963,7 +1023,6 @@ class ProfessionalReceiptGenerator:
         detail_table = Table(
             [
                 [Paragraph("Name", label_style), Paragraph(clean_name(teacher_data['teacher_name']), value_style)],
-                [Paragraph("School ID", label_style), Paragraph(teacher_data['school_id'], value_style)],
                 [Paragraph("Issued", label_style), Paragraph(issued_date.strftime('%b %d, %Y'), value_style)],
                 [Paragraph("Valid Thru", label_style), Paragraph(valid_thru.strftime('%b %d, %Y'), value_style)],
             ],
@@ -990,7 +1049,7 @@ class ProfessionalReceiptGenerator:
 
     def create_teacher_official_letter(self, teacher_data):
         """Generate an official employment letter for the teacher."""
-        filename = f"TEACHER_OFFICIAL_LETTER_{teacher_data['teacher_id']}_{teacher_data['school_id']}.pdf"
+        filename = f"TEACHER_OFFICIAL_LETTER_{teacher_data['teacher_id']}.pdf"
         filepath = os.path.join(self.receipts_dir, filename)
 
         doc = SimpleDocTemplate(
@@ -1041,10 +1100,39 @@ class ProfessionalReceiptGenerator:
             spaceAfter=8
         )
 
+        label_style = ParagraphStyle(
+            'LetterLabel',
+            parent=styles['Normal'],
+            fontSize=10,
+            leading=13,
+            textColor=self.colors['text_light'],
+        )
+
+        value_style = ParagraphStyle(
+            'LetterValue',
+            parent=styles['Normal'],
+            fontSize=11,
+            leading=14,
+            textColor=self.colors['text_dark'],
+        )
+
         issued_date = datetime.now()
         recent_pay_date = teacher_data['payment']['pay_date']
 
-        elements.append(Paragraph(teacher_data['school_name'], header_style))
+        logo_path = self.create_school_logo(teacher_data['school_name'])
+        signature_path = self.create_registrar_signature(teacher_data['registrar_name'], teacher_data['teacher_id'])
+
+        header_table = Table(
+            [[RLImage(logo_path, width=64, height=64), Paragraph(teacher_data['school_name'], header_style)]],
+            colWidths=[70, 400],
+        )
+        header_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+
+        elements.append(header_table)
         elements.append(Paragraph("Official Employment Verification", subheader_style))
         elements.append(Spacer(1, 10))
         elements.append(Paragraph(issued_date.strftime('%B %d, %Y'), meta_style))
@@ -1054,7 +1142,7 @@ class ProfessionalReceiptGenerator:
             f"To whom it may concern,<br/><br/>"
             f"This letter confirms that <b>{clean_name(teacher_data['teacher_name'])}</b> (Teacher ID: <b>{teacher_data['teacher_id']}</b>) "
             f"is an active faculty member for the <b>{teacher_data['academic_year']}</b> academic year at "
-            f"{teacher_data['school_name']} (School ID: {teacher_data['school_id']}). "
+            f"{teacher_data['school_name']}. "
             f"Their most recent pay stub was issued on {recent_pay_date}, which falls within the last 90 days, and this letter "
             "is intended solely for employment verification purposes."
         )
@@ -1077,17 +1165,39 @@ class ProfessionalReceiptGenerator:
             "For any questions regarding this verification, please contact the registrar's office using the details above."
         )
 
+        verification_table = Table(
+            [
+                [Paragraph("Faculty Status", label_style), Paragraph("Active - Verified", value_style)],
+                [Paragraph("Academic Year", label_style), Paragraph(teacher_data['academic_year'], value_style)],
+                [Paragraph("Teacher ID", label_style), Paragraph(teacher_data['teacher_id'], value_style)],
+            ],
+            colWidths=[150, 340],
+            style=TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+                ('BOX', (0, 0), (-1, -1), 0.5, self.colors['border']),
+                ('INNERGRID', (0, 0), (-1, -1), 0.25, self.colors['border']),
+                ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ])
+        )
+
         elements.append(Paragraph(letter_body, body_style))
         elements.append(Paragraph(employment_details, body_style))
         elements.append(Spacer(1, 8))
         elements.append(Paragraph(contact_block, body_style))
         elements.append(Spacer(1, 12))
         elements.append(Paragraph(closing, body_style))
+        elements.append(Spacer(1, 16))
+        elements.append(verification_table)
         elements.append(Spacer(1, 20))
         elements.append(Paragraph("Sincerely,", body_style))
-        elements.append(Spacer(1, 12))
+        elements.append(Spacer(1, 8))
+        elements.append(RLImage(signature_path, width=160, height=60))
         elements.append(Paragraph(f"{teacher_data['registrar_name']}", body_style))
         elements.append(Paragraph(f"{teacher_data['registrar_title']}, {teacher_data['school_name']}", body_style))
+        elements.append(Paragraph("Digitally signed by Registrar's Office", meta_style))
 
         doc.build(elements)
         return filename
