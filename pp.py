@@ -57,6 +57,7 @@ class ChatGPTSignupTripleMethod:
     4. 📧 Gmail IMAP (custom domain + Gmail)
     5. 🔮 Generator.email (Random CapCut-style domains)
     6. 🎯 Generator.email (Custom domain)
+    7. 📨 Generator.email (OTP fetch only)
     By: @itsmeaab
     """
     
@@ -983,6 +984,26 @@ def create_single_account(args):
         }
 
 
+def interactive_generator_otp_lookup(default_wait: int = 120) -> None:
+    """Prompt for a generator.email inbox and print the OTP, exiting afterward."""
+    email_address = input("Enter generator.email inbox (e.g. user@domain): ").strip()
+    if not email_address or "@" not in email_address:
+        raise SystemExit("❌ A valid generator.email inbox is required")
+
+    wait_input = input(f"Max wait seconds (default {default_wait}): ").strip()
+    try:
+        max_wait = int(wait_input) if wait_input else default_wait
+    except ValueError:
+        max_wait = default_wait
+
+    otp = fetch_generator_otp_only(email_address, max_wait=max_wait)
+    if otp:
+        print(f"\n🔑 OTP code: {otp}")
+        return
+
+    raise SystemExit(1)
+
+
 def get_user_input():
     """Get configuration"""
     print("="*80)
@@ -993,12 +1014,18 @@ def get_user_input():
     print("   4. 📧 Gmail IMAP (needs setup, default: Meow@1234567)")
     print("   5. 🔮 Generator.email (Random CapCut domains)")
     print("   6. 🎯 Generator.email (Custom domain)")
+    print("   7. 📨 Generator.email (OTP fetch only)")
     print("   By: @itsmeaab")
     print("="*80)
     
     # Method selection
     print("\n📊 SELECT METHOD:")
-    method_choice = input("Enter method [1=Alfashop, 2=Cekmail, 3=Temp-Mail, 4=IMAP, 5=GenAuto, 6=GenCustom] (default 1): ").strip()
+    method_choice = input("Enter method [1=Alfashop, 2=Cekmail, 3=Temp-Mail, 4=IMAP, 5=GenAuto, 6=GenCustom, 7=GenOTP] (default 1): ").strip()
+
+    if method_choice == '7':
+        print("📨 Selected: Generator.email OTP fetch only")
+        interactive_generator_otp_lookup()
+        raise SystemExit(0)
 
     # ---------------- METHOD 2 ----------------
     if method_choice == '2':
@@ -1223,17 +1250,11 @@ def otp_fetch_cli() -> bool:
 
     if args.generator_otp:
         if not args.email_address:
+            args.email_address = input("Enter generator.email inbox (e.g. user@domain): ").strip()
+        if not args.email_address:
             raise SystemExit("--email is required when using --generator-otp")
 
-        checker = ChatGPTSignupTripleMethod(
-            gmail_user=args.gmail_user or "",
-            gmail_password=args.gmail_app_password or "",
-            thread_id=0,
-            method="generator_custom",
-            user_agent=generate_user_agent(),
-        )
-
-        otp = checker.get_otp_from_generator(args.email_address, max_wait=args.max_wait)
+        otp = fetch_generator_otp_only(args.email_address, max_wait=args.max_wait)
         if otp:
             print(f"\n🔑 OTP code: {otp}")
             return True
@@ -1280,6 +1301,19 @@ def otp_fetch_cli() -> bool:
         return True
 
     raise SystemExit(1)
+
+
+def fetch_generator_otp_only(email_address: str, max_wait: int = 120) -> Optional[str]:
+    """Single-purpose helper to poll generator.email inboxes for OTP codes."""
+    checker = ChatGPTSignupTripleMethod(
+        gmail_user="",
+        gmail_password="",
+        thread_id=0,
+        method="generator_custom",
+        user_agent=generate_user_agent(),
+    )
+
+    return checker.get_otp_from_generator(email_address, max_wait=max_wait)
 
 
 if __name__ == "__main__":
