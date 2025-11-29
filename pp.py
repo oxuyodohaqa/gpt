@@ -53,6 +53,7 @@ class ChatGPTSignupTripleMethod:
     4. 📧 Gmail IMAP (custom domain + Gmail)
     5. 🔮 Generator.email (Random CapCut-style domains)
     6. 🎯 Generator.email (Custom domain)
+    7. 📫 Jellal Tmail (custom domains)
     By: @itsmeaab
     """
     
@@ -79,9 +80,16 @@ class ChatGPTSignupTripleMethod:
         'cmhvzylmfc.com', 'daouse.com', 'illubd.com', 'mkzaso.com',
         'mrotzis.com', 'xkxkud.com', 'wnbaldwy.com', 'bwmyga.com', 'ozsaip.com'
     ]
-    
+
     # Cekmail enforced domain
     CEKMAIL_DEFAULT_DOMAIN = "cekmail.com"
+
+    # Jellal Tmail domains
+    JELLAL_DOMAINS = [
+        'darosah.my.id',
+        'gamaliya.my.id',
+        'ramsis.my.id'
+    ]
 
     def __init__(self, gmail_user: str, gmail_password: str, alfashop_api_key: str = None,
                  cekmail_api_key: str = None,
@@ -100,7 +108,11 @@ class ChatGPTSignupTripleMethod:
         # Cekmail Tmail API (dedicated key + single-domain service)
         self.cekmail_api_key = cekmail_api_key or "HuXcwajFG9PvtZoN6Tq7"
         self.cekmail_base_url = "https://cekmail.com/api"
-        
+
+        # Jellal Tmail API
+        self.jellal_api_key = "DZVBRbQ6SdeFXv7GUirx"
+        self.jellal_base_url = "https://jemuje.com/api"
+
         # Thread ID
         self.thread_id = thread_id
         
@@ -140,7 +152,8 @@ class ChatGPTSignupTripleMethod:
             'tempmail': '🌐',
             'imap': '📧',
             'generator_auto': '🔮',
-            'generator_custom': '🎯'
+            'generator_custom': '🎯',
+            'jellal': '📫'
         }
         icon = method_icons.get(self.method, '❓')
         print(f"[{timestamp}] [{icon} T-{self.thread_id:03d}] {message}", flush=True)
@@ -388,6 +401,117 @@ class ChatGPTSignupTripleMethod:
             
             time.sleep(3)
         
+        self.log(f"❌ Timeout ({max_wait}s)")
+        return None
+
+    # ==================== METHOD 1C: JELLAL TMAIL ====================
+
+    def generate_jellal_email(self) -> Optional[str]:
+        """📫 Generate email using Jellal Tmail API"""
+        try:
+            domain = random.choice(self.JELLAL_DOMAINS)
+            url = f"{self.jellal_base_url}/email/create/{self.jellal_api_key}"
+
+            response = self.session.get(
+                url,
+                params={'domain': domain},
+                timeout=10
+            )
+
+            if response.ok:
+                email_address = response.text.strip()
+
+                if '@' in email_address and '.' in email_address:
+                    self.log(f"✅ Email: {email_address}")
+                    return email_address
+                else:
+                    self.log(f"⚠️  Invalid: {email_address}")
+                    return None
+            else:
+                self.log(f"❌ API failed: {response.status_code}")
+                return None
+
+        except Exception as e:
+            self.log(f"❌ Error: {e}")
+            return None
+
+    def get_otp_from_jellal(self, email_address: str, max_wait: int = 120) -> Optional[str]:
+        """📫 Fetch OTP from Jellal Tmail API"""
+        self.log(f"⏳ Checking Jellal (max {max_wait}s)...")
+        start_time = time.time()
+        check_count = 0
+
+        endpoint_patterns = [
+            f"email/{email_address}/messages/{self.jellal_api_key}",
+            f"messages/{email_address}/{self.jellal_api_key}",
+            f"inbox/{email_address}/{self.jellal_api_key}",
+            f"mail/{email_address}/{self.jellal_api_key}",
+        ]
+
+        while (time.time() - start_time) < max_wait:
+            try:
+                check_count += 1
+
+                for endpoint in endpoint_patterns:
+                    try:
+                        url = f"{self.jellal_base_url}/{endpoint}"
+                        response = self.session.get(url, timeout=10)
+
+                        if response.ok:
+                            content = response.text.strip()
+
+                            if not content or len(content) < 20:
+                                continue
+
+                            try:
+                                import json
+                                data = json.loads(content)
+
+                                messages = None
+                                if isinstance(data, list) and len(data) > 0:
+                                    messages = data
+                                elif isinstance(data, dict):
+                                    messages = data.get('messages') or data.get('data') or data.get('emails')
+
+                                if messages:
+                                    message = messages[0] if isinstance(messages, list) else messages
+                                    html_body = ''
+                                    if isinstance(message, dict):
+                                        html_body = (
+                                            message.get('html') or
+                                            message.get('body_html') or
+                                            message.get('html_body') or
+                                            message.get('content') or
+                                            message.get('body') or
+                                            str(message)
+                                        )
+                                    else:
+                                        html_body = str(message)
+
+                                    otp = self.extract_otp_from_html(html_body)
+                                    if otp:
+                                        elapsed = time.time() - start_time
+                                        self.log(f"🔑 OTP: {otp} ({elapsed:.1f}s)")
+                                        return otp
+
+                            except json.JSONDecodeError:
+                                otp = self.extract_otp_from_html(content)
+                                if otp:
+                                    elapsed = time.time() - start_time
+                                    self.log(f"🔑 OTP: {otp} ({elapsed:.1f}s)")
+                                    return otp
+                    except:
+                        continue
+
+                if check_count % 10 == 0:
+                    elapsed = time.time() - start_time
+                    self.log(f"⏳ Waiting... ({elapsed:.0f}s)")
+
+            except:
+                pass
+
+            time.sleep(3)
+
         self.log(f"❌ Timeout ({max_wait}s)")
         return None
 
@@ -885,6 +1009,9 @@ class ChatGPTSignupTripleMethod:
             elif self.method == 'cekmail':
                 code = self.get_otp_from_cekmail(email, max_wait=120)
 
+            elif self.method == 'jellal':
+                code = self.get_otp_from_jellal(email, max_wait=120)
+
             elif self.method == 'tempmail':
                 code = self.get_otp_from_tempmail(email, self.temp_mail_token, max_wait=120)
 
@@ -942,6 +1069,9 @@ def create_single_account(args):
         elif method == 'cekmail':
             email_address = bot.generate_cekmail_email()
 
+        elif method == 'jellal':
+            email_address = bot.generate_jellal_email()
+
         elif method == 'tempmail':
             email_address, token = bot.generate_tempmail_email()
             bot.temp_mail_token = token
@@ -989,12 +1119,13 @@ def get_user_input():
     print("   4. 📧 Gmail IMAP (needs setup, default: Meow@1234567)")
     print("   5. 🔮 Generator.email (Random CapCut domains)")
     print("   6. 🎯 Generator.email (Custom domain)")
+    print("   7. 📫 Jellal Tmail (new domains, default: freepalestine)")
     print("   By: @itsmeaab")
     print("="*80)
     
     # Method selection
     print("\n📊 SELECT METHOD:")
-    method_choice = input("Enter method [1=Alfashop, 2=Cekmail, 3=Temp-Mail, 4=IMAP, 5=GenAuto, 6=GenCustom] (default 1): ").strip()
+    method_choice = input("Enter method [1=Alfashop, 2=Cekmail, 3=Temp-Mail, 4=IMAP, 5=GenAuto, 6=GenCustom, 7=Jellal] (default 1): ").strip()
 
     # ---------------- METHOD 2 ----------------
     if method_choice == '2':
@@ -1032,6 +1163,12 @@ def get_user_input():
         domain = input("🌐 Enter custom domain (example: mailpro.org): ").strip()
         print(f"🎯 Selected: Generator.email Custom → {domain}")
 
+    # ---------------- METHOD 7 ----------------
+    elif method_choice == '7':
+        method = 'jellal'
+        domain = None
+        print("📫 Selected: Jellal Tmail")
+
     # ---------------- METHOD 1 (Default) ----------------
     else:
         method = 'alfashop'
@@ -1068,6 +1205,8 @@ def get_user_input():
         default_pass = "Premium12121"
     elif method == 'alfashop':
         default_pass = "alfashop1234"
+    elif method == 'jellal':
+        default_pass = "freepalestine"
     else:
         default_pass = "Meow@1234567"
 
@@ -1099,6 +1238,8 @@ def main():
         print(f"   Domains: {len(ChatGPTSignupTripleMethod.ALFASHOP_DOMAINS)} Alfashop domains")
     elif method == 'cekmail':
         print(f"   Domain: {ChatGPTSignupTripleMethod.CEKMAIL_DEFAULT_DOMAIN} (Cekmail)")
+    elif method == 'jellal':
+        print(f"   Domains: {len(ChatGPTSignupTripleMethod.JELLAL_DOMAINS)} Jellal domains")
     else:
         print(f"   Domains: {len(ChatGPTSignupTripleMethod.TEMP_MAIL_DOMAINS)} Temp-mail domains")
     print(f"   Password: {password}")
@@ -1192,7 +1333,8 @@ def main():
                     'tempmail': '🌐',
                     'imap': '📧',
                     'generator_auto': '🔮',
-                    'generator_custom': '🎯'
+                    'generator_custom': '🎯',
+                    'jellal': '📫'
                 }
                 icon = method_icons.get(result['method'], '❓')
                 name = result.get('name', 'User')
