@@ -680,6 +680,35 @@ class ProfessionalReceiptGenerator:
             "payment_data": payment_data
         }
 
+    def generate_us_teacher_headers(self, count: int = 25, school_name: str = ""):
+        """Generate teacher header entries for US records using Faker data."""
+        if self.selected_country != 'US':
+            raise ValueError("Teacher headers are only generated for the US configuration.")
+
+        school_name = school_name.strip()
+        headers = []
+        for _ in range(count):
+            fake = self.get_faker()
+            headers.append({
+                "teacher_name": clean_name(fake.name()),
+                "teacher_id": f"T{fake.random_number(digits=7, fix_len=True)}",
+                "school_name": school_name or fake.company(),
+                "school_id": f"S{fake.random_number(digits=6, fix_len=True)}"
+            })
+
+        return headers
+
+    def save_teacher_headers(self, headers):
+        """Persist generated teacher headers to disk as JSON lines."""
+        try:
+            with open(self.teacher_headers_file, 'a', encoding='utf-8') as f:
+                for header in headers:
+                    f.write(json.dumps(header) + "\n")
+
+            print(f"✅ Saved {len(headers)} teacher headers to {self.teacher_headers_file}")
+        except Exception as e:
+            print(f"⚠️ Could not save teacher headers: {e}")
+
     def generate_us_teacher_headers(self, count: int = 25):
         """Generate teacher header entries for US records using Faker data."""
         if self.selected_country != 'US':
@@ -1251,10 +1280,14 @@ class ProfessionalReceiptGenerator:
                 print(f"Output File: {self.teacher_headers_file}")
                 print(f"{'='*60}")
 
-                user_input = input("\nQuantity of teacher headers (0 to exit, blank for 25): ").strip()
+                school_name = input("Enter school name (leave blank to exit): ").strip()
+                if not school_name:
+                    break
+
+                user_input = input("Quantity of teacher headers (0 to cancel, blank for 25): ").strip()
 
                 if user_input == "0":
-                    break
+                    continue
 
                 if user_input == "":
                     quantity = 25
@@ -1269,10 +1302,10 @@ class ProfessionalReceiptGenerator:
                     print("❌ Enter a number greater than 0")
                     continue
 
-                headers = self.generate_us_teacher_headers(quantity)
+                headers = self.generate_us_teacher_headers(quantity, school_name)
                 self.save_teacher_headers(headers)
                 total += len(headers)
-                print(f"✅ Generated {len(headers)} teacher headers (Total: {total})")
+                print(f"✅ Generated {len(headers)} teacher headers for {school_name} (Total: {total})")
 
             return
 
