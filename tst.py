@@ -8,7 +8,7 @@ PROFESSIONAL TUITION RECEIPT GENERATOR WITH INSTANT APPROVAL - PERFECT FOR SHEER
 ✅ STUDENT INFO: Name, ID, Program, Semester, Payment Proof
 ✅ HARDCODED DATES: Current/upcoming term dates
 ✅ PDF OUTPUT: Professional formatting
-✅ ALL 24 COUNTRIES: Complete global support
+✅ ALL 24 COUNTRIES + US TEACHER HEADERS: Complete global support
 ✅ VERIFICATION READY: Perfect for SheerID verification
 """
 
@@ -394,8 +394,10 @@ class ProfessionalReceiptGenerator:
     def __init__(self):
         self.receipts_dir = "receipts"
         self.students_file = "students.txt"
+        self.teacher_headers_file = "teacher_headers_us.json"
         self.selected_country = None
         self.all_colleges = []
+        self.teacher_mode = False
         
         self.faker_instances = []
         self.faker_lock = threading.Lock()
@@ -448,6 +450,12 @@ class ProfessionalReceiptGenerator:
                     os.remove(self.students_file)
                 except Exception:
                     pass
+
+            if os.path.exists(self.teacher_headers_file):
+                try:
+                    os.remove(self.teacher_headers_file)
+                except Exception:
+                    pass
             
             print("🗑️  All previous data cleared!")
             print("✅ PERFECT FORMAT: Professional receipt layout")
@@ -455,7 +463,7 @@ class ProfessionalReceiptGenerator:
             print("✅ INSTITUTION: Full school name from JSON only")
             print("✅ STUDENT INFO: Name, ID, Program, Semester")
             print("✅ HARDCODED DATES: Current/upcoming term dates")
-            print("✅ ALL 24 COUNTRIES: Complete global support")
+            print("✅ ALL 24 COUNTRIES + US TEACHER HEADERS: Complete global support")
             print("="*70)
         except Exception as e:
             print(f"⚠️  Warning: {e}")
@@ -502,11 +510,11 @@ class ProfessionalReceiptGenerator:
         ]
 
     def select_country_and_load(self):
-        """Country selection interface with all 24 countries."""
-        print("\n🌍 COUNTRY SELECTION - 24 COUNTRIES AVAILABLE")
+        """Country selection interface with all 24 countries plus US teachers."""
+        print("\n🌍 COUNTRY SELECTION - 24 COUNTRIES AVAILABLE + US TEACHERS")
         print("=" * 70)
         countries = list(COUNTRY_CONFIG.keys())
-        
+
         for i in range(0, len(countries), 4):
             row = countries[i:i+4]
             line = ""
@@ -515,38 +523,52 @@ class ProfessionalReceiptGenerator:
                 idx = list(COUNTRY_CONFIG.keys()).index(country) + 1
                 line += f"{idx:2d}. {config['flag']} {config['name']:18} "
             print(line)
+        print(f"{len(countries)+1:2d}. 🇺🇸 United States (Teacher Headers)")
         print("=" * 70)
-        
+
         country_list = list(COUNTRY_CONFIG.keys())
-        
+        teacher_option = len(countries) + 1
+
         while True:
             try:
-                choice = input("\nSelect country (1-24): ").strip()
-                if choice.isdigit() and 1 <= int(choice) <= 24:
-                    self.selected_country = country_list[int(choice) - 1]
-                    break
+                choice = input("\nSelect country (1-24) or 25 for US teachers: ").strip()
+                if choice.isdigit():
+                    choice_num = int(choice)
+                    if 1 <= choice_num <= len(countries):
+                        self.teacher_mode = False
+                        self.selected_country = country_list[choice_num - 1]
+                        break
+                    if choice_num == teacher_option:
+                        self.teacher_mode = True
+                        self.selected_country = 'US'
+                        break
+                    print("❌ Please enter a number between 1 and 25")
                 else:
-                    print("❌ Please enter a number between 1 and 24")
+                    print("❌ Please enter a number between 1 and 25")
             except (ValueError, IndexError):
                 print("❌ Invalid selection. Please try again.")
-        
+
         config = COUNTRY_CONFIG[self.selected_country]
         print(f"\n✅ Selected: {config['flag']} {config['name']} ({self.selected_country})")
-        
-        self.all_colleges = self.load_colleges()
-        
-        if not self.all_colleges:
-            print("❌ No colleges loaded from JSON! Using minimal fallback.")
-            self.all_colleges = self.get_country_colleges(self.selected_country)
-        
+
+        if not self.teacher_mode:
+            self.all_colleges = self.load_colleges()
+
+            if not self.all_colleges:
+                print("❌ No colleges loaded from JSON! Using minimal fallback.")
+                self.all_colleges = self.get_country_colleges(self.selected_country)
+
         # Initialize Faker instances with English names
         try:
             self.faker_instances = [Faker('en_US') for _ in range(20)]
         except:
             self.faker_instances = [Faker() for _ in range(20)]
-            
-        print("✅ Generator ready!")
-        
+
+        if self.teacher_mode:
+            print("✅ Teacher header generator ready!")
+        else:
+            print("✅ Generator ready!")
+
         return True
 
     def get_faker(self):
@@ -657,6 +679,39 @@ class ProfessionalReceiptGenerator:
             "country_config": config,
             "payment_data": payment_data
         }
+
+    def generate_us_teacher_headers(self, count: int = 25, school_name: str = "", *_ignored, **_kwargs):
+        """Generate teacher header entries for US records using Faker data.
+
+        Extra positional/keyword arguments are ignored so legacy call sites
+        can't trigger a TypeError when a school name argument is provided.
+        """
+        if self.selected_country != 'US':
+            raise ValueError("Teacher headers are only generated for the US configuration.")
+
+        school_name = school_name.strip()
+        headers = []
+        for _ in range(count):
+            fake = self.get_faker()
+            headers.append({
+                "teacher_name": clean_name(fake.name()),
+                "teacher_id": f"T{fake.random_number(digits=7, fix_len=True)}",
+                "school_name": school_name or fake.company(),
+                "school_id": f"S{fake.random_number(digits=6, fix_len=True)}"
+            })
+
+        return headers
+
+    def save_teacher_headers(self, headers):
+        """Persist generated teacher headers to disk as JSON lines."""
+        try:
+            with open(self.teacher_headers_file, 'a', encoding='utf-8') as f:
+                for header in headers:
+                    f.write(json.dumps(header) + "\n")
+
+            print(f"✅ Saved {len(headers)} teacher headers to {self.teacher_headers_file}")
+        except Exception as e:
+            print(f"⚠️ Could not save teacher headers: {e}")
 
     def format_currency(self, amount, country_config):
         """Format currency according to country preferences."""
@@ -1191,7 +1246,45 @@ class ProfessionalReceiptGenerator:
     def interactive(self):
         total = 0
         config = COUNTRY_CONFIG[self.selected_country]
-        
+
+        if self.teacher_mode:
+            while True:
+                print(f"\n{'='*60}")
+                print("Mode: US Teacher Header Generator")
+                print("Country: 🇺🇸 United States")
+                print(f"Total Headers Generated: {total}")
+                print(f"Output File: {self.teacher_headers_file}")
+                print(f"{'='*60}")
+
+                school_name = input("Enter school name (leave blank to exit): ").strip()
+                if not school_name:
+                    break
+
+                user_input = input("Quantity of teacher headers (0 to cancel, blank for 25): ").strip()
+
+                if user_input == "0":
+                    continue
+
+                if user_input == "":
+                    quantity = 25
+                else:
+                    try:
+                        quantity = int(user_input)
+                    except Exception:
+                        print("❌ Enter a valid number")
+                        continue
+
+                if quantity < 1:
+                    print("❌ Enter a number greater than 0")
+                    continue
+
+                headers = self.generate_us_teacher_headers(quantity, school_name)
+                self.save_teacher_headers(headers)
+                total += len(headers)
+                print(f"✅ Generated {len(headers)} teacher headers for {school_name} (Total: {total})")
+
+            return
+
         while True:
             print(f"\n{'='*60}")
             print(f"Country: {config['flag']} {config['name']}")
@@ -1232,7 +1325,7 @@ def main():
     print("✅ CURRENT DATES: Current/upcoming semester dates")
     print("✅ INSTANT APPROVAL: Super-fast verification system")
     print("✅ PERFECT FORMAT: Professional PDF layout")
-    print("✅ ALL 24 COUNTRIES: Complete global support")
+    print("✅ ALL 24 COUNTRIES + US TEACHER HEADERS: Complete global support")
     print("="*70)
     
     gen = ProfessionalReceiptGenerator()
