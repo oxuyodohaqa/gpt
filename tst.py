@@ -688,8 +688,10 @@ class ProfessionalReceiptGenerator:
         insurance = random.randint(800, 1800)
         net_pay = base_salary + bonus - tax - retirement - insurance
 
-        pay_period_start = datetime.now().replace(day=1)
-        pay_period_end = (pay_period_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+        recent_day_offset = random.randint(0, 89)
+        pay_date = datetime.now() - timedelta(days=recent_day_offset)
+        pay_period_end = pay_date
+        pay_period_start = pay_period_end - timedelta(days=29)
 
         return {
             "base_salary": base_salary,
@@ -700,7 +702,7 @@ class ProfessionalReceiptGenerator:
             "net_pay": net_pay,
             "pay_period_start": pay_period_start.strftime('%B %d, %Y'),
             "pay_period_end": pay_period_end.strftime('%B %d, %Y'),
-            "pay_date": datetime.now().strftime('%B %d, %Y'),
+            "pay_date": pay_date.strftime('%B %d, %Y'),
             "bank_account": f"****{fake.random_number(digits=4, fix_len=True)}"
         }
 
@@ -783,7 +785,7 @@ class ProfessionalReceiptGenerator:
         elements.append(Paragraph(f"{teacher_data['school_name']}", school_style))
 
         issued_info = Paragraph(
-            f"Pay Date: {payment['pay_date']} | Student-Format ID: {teacher_data['teacher_id']}",
+            f"Pay Date: {payment['pay_date']} | Teacher ID: {teacher_data['teacher_id']}",
             ParagraphStyle('TeacherMeta', parent=styles['Normal'], fontSize=9, textColor=self.colors['text_light'], alignment=1, spaceAfter=14)
         )
         elements.append(issued_info)
@@ -792,7 +794,7 @@ class ProfessionalReceiptGenerator:
 
         info_table = Table([
             ["Teacher Name:", teacher_data['teacher_name']],
-            ["Student-Format ID:", teacher_data['teacher_id']],
+            ["Teacher ID:", teacher_data['teacher_id']],
             ["School Name:", teacher_data['school_name']],
             ["School ID:", teacher_data['school_id']],
             ["Pay Period:", f"{payment['pay_period_start']} - {payment['pay_period_end']}"],
@@ -840,8 +842,174 @@ class ProfessionalReceiptGenerator:
         ]))
 
         elements.append(pay_table)
+
+        doc.build(elements)
+        return filename
+
+    def create_teacher_id_card(self, teacher_data):
+        """Create a compact teacher ID card that matches student-style IDs."""
+        card_width, card_height = 3.375 * inch, 2.125 * inch
+        filename = f"TEACHER_ID_{teacher_data['teacher_id']}_{teacher_data['school_id']}.pdf"
+        filepath = os.path.join(self.receipts_dir, filename)
+
+        doc = SimpleDocTemplate(
+            filepath,
+            pagesize=(card_width, card_height),
+            rightMargin=14,
+            leftMargin=14,
+            topMargin=12,
+            bottomMargin=12
+        )
+
+        styles = getSampleStyleSheet()
+        elements = []
+
+        header_style = ParagraphStyle(
+            'CardSchool',
+            parent=styles['Heading2'],
+            fontSize=12,
+            textColor=self.colors['primary'],
+            alignment=1,
+            leading=14,
+            spaceAfter=4
+        )
+
+        subheader_style = ParagraphStyle(
+            'CardRole',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=self.colors['secondary'],
+            alignment=1,
+            spaceAfter=6
+        )
+
+        name_style = ParagraphStyle(
+            'CardName',
+            parent=styles['Heading3'],
+            fontSize=11,
+            textColor=self.colors['text_dark'],
+            alignment=1,
+            leading=13,
+            spaceAfter=6
+        )
+
+        meta_style = ParagraphStyle(
+            'CardMeta',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=self.colors['text_dark'],
+            alignment=1,
+            spaceAfter=2
+        )
+
+        divider = Table(
+            [[""]],
+            colWidths=[card_width - 28],
+            rowHeights=[1],
+            style=TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), self.colors['border'])
+            ])
+        )
+
+        issued_date = datetime.now()
+        valid_thru = issued_date + timedelta(days=365)
+
+        elements.append(Paragraph(teacher_data['school_name'], header_style))
+        elements.append(Paragraph("Faculty Identification", subheader_style))
+        elements.append(divider)
+        elements.append(Spacer(1, 6))
+        elements.append(Paragraph(clean_name(teacher_data['teacher_name']), name_style))
+        elements.append(Paragraph(f"Teacher ID: {teacher_data['teacher_id']}", meta_style))
+        elements.append(Paragraph(f"School ID: {teacher_data['school_id']}", meta_style))
+        elements.append(Spacer(1, 6))
+        elements.append(divider)
+        elements.append(Spacer(1, 4))
+        elements.append(Paragraph(f"Issued: {issued_date.strftime('%b %d, %Y')}", meta_style))
+        elements.append(Paragraph(f"Valid Thru: {valid_thru.strftime('%b %d, %Y')}", meta_style))
+
+        doc.build(elements)
+        return filename
+
+    def create_teacher_official_letter(self, teacher_data):
+        """Generate an official employment letter for the teacher."""
+        filename = f"TEACHER_OFFICIAL_LETTER_{teacher_data['teacher_id']}_{teacher_data['school_id']}.pdf"
+        filepath = os.path.join(self.receipts_dir, filename)
+
+        doc = SimpleDocTemplate(
+            filepath,
+            pagesize=letter,
+            rightMargin=54,
+            leftMargin=54,
+            topMargin=48,
+            bottomMargin=48
+        )
+
+        styles = getSampleStyleSheet()
+        elements = []
+
+        header_style = ParagraphStyle(
+            'LetterHeader',
+            parent=styles['Heading1'],
+            fontSize=16,
+            textColor=self.colors['primary'],
+            alignment=1,
+            spaceAfter=12
+        )
+
+        subheader_style = ParagraphStyle(
+            'LetterSubheader',
+            parent=styles['Heading2'],
+            fontSize=12,
+            textColor=self.colors['secondary'],
+            alignment=1,
+            spaceAfter=18
+        )
+
+        body_style = ParagraphStyle(
+            'LetterBody',
+            parent=styles['Normal'],
+            fontSize=11,
+            leading=16,
+            textColor=self.colors['text_dark'],
+            spaceAfter=14
+        )
+
+        meta_style = ParagraphStyle(
+            'LetterMeta',
+            parent=styles['Normal'],
+            fontSize=10,
+            leading=14,
+            textColor=self.colors['text_dark'],
+            spaceAfter=8
+        )
+
+        issued_date = datetime.now()
+        recent_pay_date = teacher_data['payment']['pay_date']
+
+        elements.append(Paragraph(teacher_data['school_name'], header_style))
+        elements.append(Paragraph("Official Employment Verification", subheader_style))
+        elements.append(Spacer(1, 10))
+        elements.append(Paragraph(issued_date.strftime('%B %d, %Y'), meta_style))
+        elements.append(Spacer(1, 6))
+
+        letter_body = (
+            f"To whom it may concern,<br/><br/>"
+            f"This letter confirms that <b>{clean_name(teacher_data['teacher_name'])}</b> (Teacher ID: <b>{teacher_data['teacher_id']}</b>) "
+            f"is an active faculty member at {teacher_data['school_name']} (School ID: {teacher_data['school_id']}). "
+            f"Their most recent pay stub was issued on {recent_pay_date}, which falls within the last 90 days. "
+            "The enclosed pay stub and ID card may be used for verification purposes."
+        )
+
+        closing = (
+            "If you have any questions regarding this verification, please contact the school registrar's office."
+        )
+
+        elements.append(Paragraph(letter_body, body_style))
+        elements.append(Paragraph(closing, body_style))
+        elements.append(Spacer(1, 20))
+        elements.append(Paragraph("Sincerely,", body_style))
         elements.append(Spacer(1, 12))
-        elements.append(Paragraph("Note: Teacher ID mirrors the linked student ID for synchronized records.", body_style))
+        elements.append(Paragraph(f"Registrar, {teacher_data['school_name']}", body_style))
 
         doc.build(elements)
         return filename
@@ -1415,9 +1583,13 @@ class ProfessionalReceiptGenerator:
                 teachers = self.generate_us_teacher_headers(quantity, school_name)
                 for teacher in teachers:
                     self.create_teacher_payslip_pdf(teacher)
+                    self.create_teacher_id_card(teacher)
+                    self.create_teacher_official_letter(teacher)
 
                 total += len(teachers)
-                print(f"✅ Generated {len(teachers)} teacher pay slips for {school_name} (Total: {total})")
+                print(
+                    f"✅ Generated {len(teachers)} teacher pay slips, ID cards, and official letters for {school_name} (Total: {total})"
+                )
 
             return
 
