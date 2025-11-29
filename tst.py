@@ -8,7 +8,7 @@ PROFESSIONAL TUITION RECEIPT GENERATOR WITH INSTANT APPROVAL - PERFECT FOR SHEER
 ✅ STUDENT INFO: Name, ID, Program, Semester, Payment Proof
 ✅ HARDCODED DATES: Current/upcoming term dates
 ✅ PDF OUTPUT: Professional formatting
-✅ ALL 24 COUNTRIES + US TEACHER HEADERS: Complete global support
+✅ ALL 24 COUNTRIES + US TEACHER PAY SLIPS: Complete global support
 ✅ VERIFICATION READY: Perfect for SheerID verification
 """
 
@@ -394,7 +394,6 @@ class ProfessionalReceiptGenerator:
     def __init__(self):
         self.receipts_dir = "receipts"
         self.students_file = "students.txt"
-        self.teacher_headers_file = "teacher_headers_us.json"
         self.selected_country = None
         self.all_colleges = []
         self.teacher_mode = False
@@ -451,19 +450,13 @@ class ProfessionalReceiptGenerator:
                 except Exception:
                     pass
 
-            if os.path.exists(self.teacher_headers_file):
-                try:
-                    os.remove(self.teacher_headers_file)
-                except Exception:
-                    pass
-            
             print("🗑️  All previous data cleared!")
             print("✅ PERFECT FORMAT: Professional receipt layout")
             print("✅ INSTANT APPROVAL: Super-fast verification system") 
             print("✅ INSTITUTION: Full school name from JSON only")
             print("✅ STUDENT INFO: Name, ID, Program, Semester")
             print("✅ HARDCODED DATES: Current/upcoming term dates")
-            print("✅ ALL 24 COUNTRIES + US TEACHER HEADERS: Complete global support")
+            print("✅ ALL 24 COUNTRIES + US TEACHER PAY SLIPS: Complete global support")
             print("="*70)
         except Exception as e:
             print(f"⚠️  Warning: {e}")
@@ -523,7 +516,7 @@ class ProfessionalReceiptGenerator:
                 idx = list(COUNTRY_CONFIG.keys()).index(country) + 1
                 line += f"{idx:2d}. {config['flag']} {config['name']:18} "
             print(line)
-        print(f"{len(countries)+1:2d}. 🇺🇸 United States (Teacher Headers)")
+        print(f"{len(countries)+1:2d}. 🇺🇸 United States (Teacher Pay Slips)")
         print("=" * 70)
 
         country_list = list(COUNTRY_CONFIG.keys())
@@ -565,7 +558,7 @@ class ProfessionalReceiptGenerator:
             self.faker_instances = [Faker() for _ in range(20)]
 
         if self.teacher_mode:
-            print("✅ Teacher header generator ready!")
+            print("✅ Teacher pay slip generator ready!")
         else:
             print("✅ Generator ready!")
 
@@ -614,7 +607,7 @@ class ProfessionalReceiptGenerator:
         first_name = fake.first_name()
         last_name = fake.last_name()
         full_name = clean_name(f"{first_name} {last_name}")
-        student_id = f"{fake.random_number(digits=8, fix_len=True)}"
+        student_id = self.generate_student_style_id(fake)
         
         # CURRENT/UPCOMING TERM DATES for SheerID verification
         current_date = datetime.now()
@@ -665,7 +658,7 @@ class ProfessionalReceiptGenerator:
         
         # Generate payment data
         payment_data = self.generate_payment_data(config)
-        
+
         return {
             "full_name": full_name,
             "student_id": student_id,
@@ -680,95 +673,178 @@ class ProfessionalReceiptGenerator:
             "payment_data": payment_data
         }
 
-    def generate_us_teacher_headers(self, count: int = 25, school_name: str = "", *_ignored, **_kwargs):
-        """Generate teacher header entries for US records using Faker data.
+    def generate_student_style_id(self, faker_instance=None):
+        """Create an 8-digit identifier used for both students and teachers."""
+        faker_instance = faker_instance or self.get_faker()
+        return f"{faker_instance.random_number(digits=8, fix_len=True)}"
 
-        Extra positional/keyword arguments are ignored so legacy call sites
-        can't trigger a TypeError when a school name argument is provided.
-        """
+    def generate_teacher_payment_data(self):
+        """Create realistic payment data for teacher pay slips."""
+        fake = self.get_faker()
+        base_salary = random.randint(48000, 92000)
+        bonus = random.randint(500, 3500)
+        tax = int(base_salary * 0.18)
+        retirement = int(base_salary * 0.05)
+        insurance = random.randint(800, 1800)
+        net_pay = base_salary + bonus - tax - retirement - insurance
+
+        pay_period_start = datetime.now().replace(day=1)
+        pay_period_end = (pay_period_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+
+        return {
+            "base_salary": base_salary,
+            "bonus": bonus,
+            "tax": tax,
+            "retirement": retirement,
+            "insurance": insurance,
+            "net_pay": net_pay,
+            "pay_period_start": pay_period_start.strftime('%B %d, %Y'),
+            "pay_period_end": pay_period_end.strftime('%B %d, %Y'),
+            "pay_date": datetime.now().strftime('%B %d, %Y'),
+            "bank_account": f"****{fake.random_number(digits=4, fix_len=True)}"
+        }
+
+    def generate_us_teacher_headers(self, count: int = 25, school_name: str = "", student_id: str | None = None, *_ignored, **_kwargs):
+        """Generate teacher records with IDs aligned to students and pay slips."""
         if self.selected_country != 'US':
-            raise ValueError("Teacher headers are only generated for the US configuration.")
+            raise ValueError("Teacher pay slips are only generated for the US configuration.")
 
         school_name = school_name.strip()
-        headers = []
+        teachers = []
         for _ in range(count):
             fake = self.get_faker()
-            headers.append({
+            synced_student_id = str(student_id).strip() if student_id else ""
+            if not synced_student_id.isdigit() or len(synced_student_id) != 8:
+                synced_student_id = self.generate_student_style_id(fake)
+            teachers.append({
                 "teacher_name": clean_name(fake.name()),
-                "teacher_id": f"T{fake.random_number(digits=7, fix_len=True)}",
+                "teacher_id": synced_student_id,
                 "school_name": school_name or fake.company(),
-                "school_id": f"S{fake.random_number(digits=6, fix_len=True)}"
+                "school_id": f"S{fake.random_number(digits=6, fix_len=True)}",
+                "payment": self.generate_teacher_payment_data()
             })
 
-        return headers
+        return teachers
 
-    def save_teacher_headers(self, headers):
-        """Persist generated teacher headers to disk as JSON lines."""
-        try:
-            with open(self.teacher_headers_file, 'a', encoding='utf-8') as f:
-                for header in headers:
-                    f.write(json.dumps(header) + "\n")
+    def create_teacher_payslip_pdf(self, teacher_data):
+        """Create a teacher pay slip PDF that mirrors student ID formatting."""
+        filename = f"TEACHER_PAYSLIP_{teacher_data['teacher_id']}_{teacher_data['school_id']}.pdf"
+        filepath = os.path.join(self.receipts_dir, filename)
 
-            print(f"✅ Saved {len(headers)} teacher headers to {self.teacher_headers_file}")
-        except Exception as e:
-            print(f"⚠️ Could not save teacher headers: {e}")
+        doc = SimpleDocTemplate(
+            filepath,
+            pagesize=letter,
+            rightMargin=40,
+            leftMargin=40,
+            topMargin=40,
+            bottomMargin=20
+        )
 
-    def generate_us_teacher_headers(self, count: int = 25, school_name: str = ""):
-        """Generate teacher header entries for US records using Faker data."""
-        if self.selected_country != 'US':
-            raise ValueError("Teacher headers are only generated for the US configuration.")
+        elements = []
+        styles = getSampleStyleSheet()
 
-        school_name = school_name.strip()
-        headers = []
-        for _ in range(count):
-            fake = self.get_faker()
-            headers.append({
-                "teacher_name": clean_name(fake.name()),
-                "teacher_id": f"T{fake.random_number(digits=7, fix_len=True)}",
-                "school_name": school_name or fake.company(),
-                "school_id": f"S{fake.random_number(digits=6, fix_len=True)}"
-            })
+        header_style = ParagraphStyle(
+            'TeacherHeader',
+            parent=styles['Heading1'],
+            fontSize=20,
+            textColor=self.colors['primary'],
+            spaceAfter=12,
+            alignment=1,
+        )
 
-        return headers
+        school_style = ParagraphStyle(
+            'TeacherSchool',
+            parent=styles['Heading2'],
+            fontSize=16,
+            textColor=self.colors['secondary'],
+            alignment=1,
+            spaceAfter=14,
+        )
 
-    def save_teacher_headers(self, headers):
-        """Persist generated teacher headers to disk as JSON lines."""
-        try:
-            with open(self.teacher_headers_file, 'a', encoding='utf-8') as f:
-                for header in headers:
-                    f.write(json.dumps(header) + "\n")
+        body_style = ParagraphStyle(
+            'TeacherBody',
+            parent=styles['Normal'],
+            fontSize=10,
+            leading=14,
+            textColor=self.colors['text_dark'],
+        )
 
-            print(f"✅ Saved {len(headers)} teacher headers to {self.teacher_headers_file}")
-        except Exception as e:
-            print(f"⚠️ Could not save teacher headers: {e}")
+        title_style = ParagraphStyle(
+            'TeacherTitle',
+            parent=styles['Heading3'],
+            fontSize=13,
+            textColor=self.colors['primary'],
+            spaceAfter=8,
+        )
 
-    def generate_us_teacher_headers(self, count: int = 25):
-        """Generate teacher header entries for US records using Faker data."""
-        if self.selected_country != 'US':
-            raise ValueError("Teacher headers are only generated for the US configuration.")
+        payment = teacher_data['payment']
 
-        headers = []
-        for _ in range(count):
-            fake = self.get_faker()
-            headers.append({
-                "teacher_name": clean_name(fake.name()),
-                "teacher_id": f"T{fake.random_number(digits=7, fix_len=True)}",
-                "school_name": fake.company(),
-                "school_id": f"S{fake.random_number(digits=6, fix_len=True)}"
-            })
+        elements.append(Paragraph("OFFICIAL TEACHER PAY SLIP", header_style))
+        elements.append(Paragraph(f"{teacher_data['school_name']}", school_style))
 
-        return headers
+        issued_info = Paragraph(
+            f"Pay Date: {payment['pay_date']} | Student-Format ID: {teacher_data['teacher_id']}",
+            ParagraphStyle('TeacherMeta', parent=styles['Normal'], fontSize=9, textColor=self.colors['text_light'], alignment=1, spaceAfter=14)
+        )
+        elements.append(issued_info)
 
-    def save_teacher_headers(self, headers):
-        """Persist generated teacher headers to disk as JSON lines."""
-        try:
-            with open(self.teacher_headers_file, 'a', encoding='utf-8') as f:
-                for header in headers:
-                    f.write(json.dumps(header) + "\n")
+        elements.append(Paragraph("Teacher Details", title_style))
 
-            print(f"✅ Saved {len(headers)} teacher headers to {self.teacher_headers_file}")
-        except Exception as e:
-            print(f"⚠️ Could not save teacher headers: {e}")
+        info_table = Table([
+            ["Teacher Name:", teacher_data['teacher_name']],
+            ["Student-Format ID:", teacher_data['teacher_id']],
+            ["School Name:", teacher_data['school_name']],
+            ["School ID:", teacher_data['school_id']],
+            ["Pay Period:", f"{payment['pay_period_start']} - {payment['pay_period_end']}"],
+            ["Bank Account:", payment['bank_account']],
+        ], colWidths=[2*inch, 3.8*inch])
+
+        info_table.setStyle(TableStyle([
+            ('FONT', (0, 0), (-1, -1), 'Helvetica', 10),
+            ('BACKGROUND', (0, 0), (0, -1), self.colors['row_odd']),
+            ('BACKGROUND', (1, 0), (1, -1), colors.white),
+            ('TEXTCOLOR', (0, 0), (-1, -1), self.colors['text_dark']),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LINEBELOW', (0, 0), (-1, -1), 1, self.colors['border']),
+            ('BOX', (0, 0), (-1, -1), 1, self.colors['border']),
+            ('PADDING', (0, 0), (-1, -1), 8),
+        ]))
+
+        elements.append(info_table)
+        elements.append(Spacer(1, 16))
+
+        pay_table = Table([
+            ["Earnings", "Amount"],
+            ["Base Salary", self.format_currency(payment['base_salary'], COUNTRY_CONFIG['US'])],
+            ["Bonus", self.format_currency(payment['bonus'], COUNTRY_CONFIG['US'])],
+            ["Gross Pay", self.format_currency(payment['base_salary'] + payment['bonus'], COUNTRY_CONFIG['US'])],
+            ["Tax", self.format_currency(-payment['tax'], COUNTRY_CONFIG['US'])],
+            ["Retirement", self.format_currency(-payment['retirement'], COUNTRY_CONFIG['US'])],
+            ["Insurance", self.format_currency(-payment['insurance'], COUNTRY_CONFIG['US'])],
+            ["Net Pay", self.format_currency(payment['net_pay'], COUNTRY_CONFIG['US'])],
+        ], colWidths=[200, 230])
+
+        pay_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), self.colors['header_bg']),
+            ('TEXTCOLOR', (0, 0), (-1, 0), self.colors['white']),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), self.colors['row_odd']),
+            ('TEXTCOLOR', (0, 1), (-1, -1), self.colors['text_dark']),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('GRID', (0, 0), (-1, -1), 0.5, self.colors['border']),
+        ]))
+
+        elements.append(pay_table)
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph("Note: Teacher ID mirrors the linked student ID for synchronized records.", body_style))
+
+        doc.build(elements)
+        return filename
 
     def format_currency(self, amount, country_config):
         """Format currency according to country preferences."""
@@ -1307,17 +1383,18 @@ class ProfessionalReceiptGenerator:
         if self.teacher_mode:
             while True:
                 print(f"\n{'='*60}")
-                print("Mode: US Teacher Header Generator")
+                print("Mode: US Teacher Pay Slip Generator")
                 print("Country: 🇺🇸 United States")
-                print(f"Total Headers Generated: {total}")
-                print(f"Output File: {self.teacher_headers_file}")
+                print(f"Total Pay Slips Generated: {total}")
+                print(f"Output Folder: {self.receipts_dir}/")
+                print("Student-style IDs and pay slip layout mirror student receipts.")
                 print(f"{'='*60}")
 
                 school_name = input("Enter school name (leave blank to exit): ").strip()
                 if not school_name:
                     break
 
-                user_input = input("Quantity of teacher headers (0 to cancel, blank for 25): ").strip()
+                user_input = input("Quantity of teacher pay slips (0 to cancel, blank for 25): ").strip()
 
                 if user_input == "0":
                     continue
@@ -1335,10 +1412,12 @@ class ProfessionalReceiptGenerator:
                     print("❌ Enter a number greater than 0")
                     continue
 
-                headers = self.generate_us_teacher_headers(quantity, school_name)
-                self.save_teacher_headers(headers)
-                total += len(headers)
-                print(f"✅ Generated {len(headers)} teacher headers for {school_name} (Total: {total})")
+                teachers = self.generate_us_teacher_headers(quantity, school_name)
+                for teacher in teachers:
+                    self.create_teacher_payslip_pdf(teacher)
+
+                total += len(teachers)
+                print(f"✅ Generated {len(teachers)} teacher pay slips for {school_name} (Total: {total})")
 
             return
 
@@ -1382,7 +1461,7 @@ def main():
     print("✅ CURRENT DATES: Current/upcoming semester dates")
     print("✅ INSTANT APPROVAL: Super-fast verification system")
     print("✅ PERFECT FORMAT: Professional PDF layout")
-    print("✅ ALL 24 COUNTRIES + US TEACHER HEADERS: Complete global support")
+    print("✅ ALL 24 COUNTRIES + US TEACHER PAY SLIPS: Complete global support")
     print("="*70)
     
     gen = ProfessionalReceiptGenerator()
