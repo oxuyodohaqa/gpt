@@ -762,7 +762,10 @@ def gen_salary_receipt_auto(
     d = ImageDraw.Draw(img)
     issued = issue_date or datetime.now()
     period_length = random.randint(14, 30)
+    max_period_window = datetime.now() - timedelta(days=90)
     period_start = issued - timedelta(days=period_length)
+    if period_start < max_period_window:
+        period_start = max_period_window
     period_end = issued
     base_salary = random.randint(*cfg['salary'])
     allowances = int(base_salary * random.uniform(0.05, 0.15))
@@ -1663,6 +1666,7 @@ def process_quantity(qty: int, update: Update, context: CallbackContext):
         base_teacher = context.user_data.get('teacher_data', {})
         used_teacher_names = set()
         used_teacher_ids = set()
+        used_professions = set()
         for i in range(qty):
             try:
                 teacher_data = base_teacher.copy()
@@ -1671,7 +1675,7 @@ def process_quantity(qty: int, update: Update, context: CallbackContext):
                 tid = teacher_data.get('id') if qty == 1 else None
                 name = name or fake.name()
                 tid = tid or generate_random_teacher_id()
-                profession = teacher_data.get('profession') or 'Teacher'
+                profession = teacher_data.get('profession') or None
                 start_date = teacher_data.get('start_date') or fake.date_between(start_date='-6y', end_date='-1y').strftime('%d %b %Y')
                 academic_year = teacher_data.get('academic_year') or f"{datetime.now().year}-{datetime.now().year + 1}"
                 employment_type = teacher_data.get('employment_type') or 'Full-Time Faculty'
@@ -1682,6 +1686,16 @@ def process_quantity(qty: int, update: Update, context: CallbackContext):
                 school_contact = teacher_data.get('school_contact') or fake.phone_number()
                 school_email = teacher_data.get('school_email') or fake.company_email()
                 school_website = teacher_data.get('school_website') or f"https://www.{fake.domain_name()}"
+
+                if not profession:
+                    attempts = 0
+                    while attempts < 20:
+                        profession_candidate = generate_random_profession()
+                        if qty == 1 or profession_candidate not in used_professions:
+                            profession = profession_candidate
+                            break
+                        attempts += 1
+                    profession = profession or generate_random_profession()
 
                 if qty > 1:
                     attempts = 0
@@ -1702,8 +1716,9 @@ def process_quantity(qty: int, update: Update, context: CallbackContext):
 
                 used_teacher_names.add(name.lower())
                 used_teacher_ids.add(tid)
+                used_professions.add(profession)
 
-                issue_date = datetime.now() - timedelta(days=random.randint(0, 330))
+                issue_date = datetime.now() - timedelta(days=random.randint(1, 90))
 
                 id_img = gen_teacher_id_auto(
                     school_name,
