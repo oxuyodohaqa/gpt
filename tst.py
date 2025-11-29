@@ -727,11 +727,20 @@ class ProfessionalReceiptGenerator:
             synced_student_id = str(student_id).strip() if student_id else ""
             if not synced_student_id.isdigit() or len(synced_student_id) != 8:
                 synced_student_id = self.generate_student_style_id(fake)
+            school_address = fake.address().replace("\n", ", ")
+            school_domain = fake.domain_name()
             teachers.append({
                 "teacher_name": clean_name(fake.name()),
                 "teacher_id": synced_student_id,
                 "school_name": school_name or fake.company(),
                 "school_id": f"S{fake.random_number(digits=6, fix_len=True)}",
+                "school_address": school_address,
+                "school_phone": fake.phone_number(),
+                "school_email": f"registrar@{school_domain}",
+                "school_website": f"https://{school_domain}",
+                "academic_year": f"{datetime.now().year}-{datetime.now().year + 1}",
+                "registrar_name": clean_name(fake.name()),
+                "registrar_title": random.choice(["Registrar", "HR Manager", "HR Director"]),
                 "payment": self.generate_teacher_payment_data()
             })
 
@@ -1044,21 +1053,41 @@ class ProfessionalReceiptGenerator:
         letter_body = (
             f"To whom it may concern,<br/><br/>"
             f"This letter confirms that <b>{clean_name(teacher_data['teacher_name'])}</b> (Teacher ID: <b>{teacher_data['teacher_id']}</b>) "
-            f"is an active faculty member at {teacher_data['school_name']} (School ID: {teacher_data['school_id']}). "
-            f"Their most recent pay stub was issued on {recent_pay_date}, which falls within the last 90 days. "
-            "The enclosed pay stub and ID card may be used for verification purposes."
+            f"is an active faculty member for the <b>{teacher_data['academic_year']}</b> academic year at "
+            f"{teacher_data['school_name']} (School ID: {teacher_data['school_id']}). "
+            f"Their most recent pay stub was issued on {recent_pay_date}, which falls within the last 90 days, and this letter "
+            "is intended solely for employment verification purposes."
+        )
+
+        employment_details = (
+            f"Employment type: Full-Time Faculty<br/>"
+            f"Primary subject: Education<br/>"
+            f"Verification issued: {issued_date.strftime('%B %d, %Y')}"
+        )
+
+        contact_block = (
+            f"<b>School contact</b><br/>"
+            f"Address: {teacher_data['school_address']}<br/>"
+            f"Phone: {teacher_data['school_phone']}<br/>"
+            f"Email: {teacher_data['school_email']}<br/>"
+            f"Website: {teacher_data['school_website']}"
         )
 
         closing = (
-            "If you have any questions regarding this verification, please contact the school registrar's office."
+            "For any questions regarding this verification, please contact the registrar's office using the details above."
         )
 
         elements.append(Paragraph(letter_body, body_style))
+        elements.append(Paragraph(employment_details, body_style))
+        elements.append(Spacer(1, 8))
+        elements.append(Paragraph(contact_block, body_style))
+        elements.append(Spacer(1, 12))
         elements.append(Paragraph(closing, body_style))
         elements.append(Spacer(1, 20))
         elements.append(Paragraph("Sincerely,", body_style))
         elements.append(Spacer(1, 12))
-        elements.append(Paragraph(f"Registrar, {teacher_data['school_name']}", body_style))
+        elements.append(Paragraph(f"{teacher_data['registrar_name']}", body_style))
+        elements.append(Paragraph(f"{teacher_data['registrar_title']}, {teacher_data['school_name']}", body_style))
 
         doc.build(elements)
         return filename
