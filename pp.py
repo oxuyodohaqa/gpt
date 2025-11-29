@@ -1,8 +1,12 @@
 import os
+import sys
 import time
 import uuid
 import random
 import re
+import argparse
+import imaplib
+import email
 import cloudscraper
 from typing import Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
@@ -1202,9 +1206,86 @@ def main():
     input("\nPress Enter to exit...")
 
 
+def otp_fetch_cli() -> bool:
+    """Fetch a verification OTP from supported email providers via CLI flags."""
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--otp-only", action="store_true", help="Fetch an OTP instead of creating accounts")
+    parser.add_argument("--generator-otp", action="store_true", help="Fetch an OTP from generator.email only")
+    parser.add_argument("--method", choices=["alfashop", "cekmail", "tempmail", "imap", "generator_auto", "generator_custom"], default="imap")
+    parser.add_argument("--email", dest="email_address", help="Target email address to poll for the OTP")
+    parser.add_argument("--token", help="API token (Temp-Mail.io)")
+    parser.add_argument("--custom-domain", dest="custom_domain", help="generator.email custom domain when using generator_custom")
+    parser.add_argument("--max-wait", type=int, default=120, help="How long to poll for the OTP")
+    parser.add_argument("--gmail-user", default=os.environ.get("GMAIL_USER"), help="Gmail address for IMAP (defaults to GMAIL_USER env var)")
+    parser.add_argument("--gmail-app-password", default=os.environ.get("GMAIL_APP_PASSWORD"), help="Gmail app password for IMAP (defaults to GMAIL_APP_PASSWORD env var)")
+
+    args, _ = parser.parse_known_args()
+
+    if args.generator_otp:
+        if not args.email_address:
+            raise SystemExit("--email is required when using --generator-otp")
+
+        checker = ChatGPTSignupTripleMethod(
+            gmail_user=args.gmail_user or "",
+            gmail_password=args.gmail_app_password or "",
+            thread_id=0,
+            method="generator_custom",
+            user_agent=generate_user_agent(),
+        )
+
+        otp = checker.get_otp_from_generator(args.email_address, max_wait=args.max_wait)
+        if otp:
+            print(f"\n🔑 OTP code: {otp}")
+            return True
+
+        raise SystemExit(1)
+
+    if not args.otp_only:
+        return False
+
+    if not args.email_address:
+        raise SystemExit("--email is required when using --otp-only")
+
+    if args.method == "imap" and (not args.gmail_user or not args.gmail_app_password):
+        raise SystemExit("IMAP requires --gmail-user and --gmail-app-password or matching environment variables")
+
+    checker = ChatGPTSignupTripleMethod(
+        gmail_user=args.gmail_user or "",
+        gmail_password=args.gmail_app_password or "",
+        thread_id=0,
+        method=args.method,
+        user_agent=generate_user_agent(),
+    )
+
+    if args.method == "tempmail":
+        checker.temp_mail_token = args.token
+        otp = checker.get_otp_from_tempmail(args.email_address, args.token, max_wait=args.max_wait)
+    elif args.method == "alfashop":
+        otp = checker.get_otp_from_alfashop(args.email_address, max_wait=args.max_wait)
+    elif args.method == "cekmail":
+        otp = checker.get_otp_from_cekmail(args.email_address, max_wait=args.max_wait)
+    elif args.method == "imap":
+        otp = checker.get_otp_from_imap(args.email_address, max_wait=args.max_wait)
+    elif args.method == "generator_auto":
+        otp = checker.get_otp_from_generator(args.email_address, max_wait=args.max_wait)
+    elif args.method == "generator_custom":
+        if not args.custom_domain:
+            raise SystemExit("--custom-domain is required when method is generator_custom")
+        otp = checker.get_otp_from_generator(args.email_address, max_wait=args.max_wait)
+    else:
+        raise SystemExit(f"Unsupported method: {args.method}")
+
+    if otp:
+        print(f"\n🔑 OTP code: {otp}")
+        return True
+
+    raise SystemExit(1)
+
+
 if __name__ == "__main__":
     try:
-        main()
+        if not otp_fetch_cli():
+            main()
     except KeyboardInterrupt:
         print("\n\n⚠️  Cancelled")
         input("Press Enter to exit...")
