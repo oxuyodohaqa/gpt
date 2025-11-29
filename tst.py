@@ -658,6 +658,23 @@ class ProfessionalReceiptGenerator:
             "payment_data": payment_data
         }
 
+    def generate_us_teacher_headers(self, count: int = 25):
+        """Generate teacher header entries for US records using Faker data."""
+        if self.selected_country != 'US':
+            raise ValueError("Teacher headers are only generated for the US configuration.")
+
+        headers = []
+        for _ in range(count):
+            fake = self.get_faker()
+            headers.append({
+                "teacher_name": clean_name(fake.name()),
+                "teacher_id": f"T{fake.random_number(digits=7, fix_len=True)}",
+                "school_name": fake.company(),
+                "school_id": f"S{fake.random_number(digits=6, fix_len=True)}"
+            })
+
+        return headers
+
     def format_currency(self, amount, country_config):
         """Format currency according to country preferences."""
         symbol = country_config['currency_symbol']
