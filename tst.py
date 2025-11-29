@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-PROFESSIONAL TUITION RECEIPT GENERATOR WITH INSTANT APPROVAL - PERFECT FOR SHEERID
+PROFESSIONAL TUITION RECEIPT GENERATOR WITH INSTANT APPROVAL LOOK - PERFECT FOR SHEERID
 ✅ TUITION RECEIPT: Professional receipt with all required fields
 ✅ CLASS SCHEDULE: Complete schedule with enrollment proof
-✅ INSTANT APPROVAL: Super-fast verification system
-✅ INSTITUTION NAME: Full school name from JSON only  
+✅ INSTANT APPROVAL: Auto-approve language for seamless flows
+✅ INSTITUTION NAME: Full school name from JSON only
 ✅ STUDENT INFO: Name, ID, Program, Semester, Payment Proof
 ✅ HARDCODED DATES: Current/upcoming term dates
 ✅ PDF OUTPUT: Professional formatting
@@ -452,7 +452,7 @@ class ProfessionalReceiptGenerator:
 
             print("🗑️  All previous data cleared!")
             print("✅ PERFECT FORMAT: Professional receipt layout")
-            print("✅ INSTANT APPROVAL: Super-fast verification system") 
+            print("✅ INSTANT APPROVAL: Auto-cleared verification language ready")
             print("✅ INSTITUTION: Full school name from JSON only")
             print("✅ STUDENT INFO: Name, ID, Program, Semester")
             print("✅ HARDCODED DATES: Current/upcoming term dates")
@@ -460,6 +460,13 @@ class ProfessionalReceiptGenerator:
             print("="*70)
         except Exception as e:
             print(f"⚠️  Warning: {e}")
+
+    def print_review_notice(self):
+        """Display instant-approval style messaging for seamless verification."""
+        print("⚡ Instant Approval")
+        print("Most requests are automatically cleared in seconds with AI-fast review copy.")
+        print("Stay here or receive an email confirmation right after instant approval.")
+        print("No waiting room messaging—just immediate success language for SheerID-ready docs.")
 
     def load_colleges(self):
         """Load colleges ONLY from JSON file - no hardcoded data."""
@@ -561,6 +568,8 @@ class ProfessionalReceiptGenerator:
             print("✅ Teacher pay slip generator ready!")
         else:
             print("✅ Generator ready!")
+
+        self.print_review_notice()
 
         return True
 
@@ -864,68 +873,108 @@ class ProfessionalReceiptGenerator:
         styles = getSampleStyleSheet()
         elements = []
 
-        header_style = ParagraphStyle(
-            'CardSchool',
+        brand_style = ParagraphStyle(
+            'CardBrand',
             parent=styles['Heading2'],
+            fontSize=11,
+            textColor=self.colors['white'],
+            alignment=0,
+            leading=13,
+        )
+
+        role_style = ParagraphStyle(
+            'CardRole',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=self.colors['white'],
+            alignment=2,
+        )
+
+        label_style = ParagraphStyle(
+            'CardLabel',
+            parent=styles['Normal'],
+            fontSize=8,
+            textColor=self.colors['text_light'],
+            alignment=0,
+        )
+
+        value_style = ParagraphStyle(
+            'CardValue',
+            parent=styles['Normal'],
+            fontSize=9.5,
+            textColor=self.colors['text_dark'],
+            alignment=0,
+        )
+
+        badge_style = ParagraphStyle(
+            'CardBadge',
+            parent=styles['Heading3'],
             fontSize=12,
             textColor=self.colors['primary'],
             alignment=1,
             leading=14,
-            spaceAfter=4
-        )
-
-        subheader_style = ParagraphStyle(
-            'CardRole',
-            parent=styles['Normal'],
-            fontSize=9,
-            textColor=self.colors['secondary'],
-            alignment=1,
-            spaceAfter=6
-        )
-
-        name_style = ParagraphStyle(
-            'CardName',
-            parent=styles['Heading3'],
-            fontSize=11,
-            textColor=self.colors['text_dark'],
-            alignment=1,
-            leading=13,
-            spaceAfter=6
-        )
-
-        meta_style = ParagraphStyle(
-            'CardMeta',
-            parent=styles['Normal'],
-            fontSize=8,
-            textColor=self.colors['text_dark'],
-            alignment=1,
-            spaceAfter=2
-        )
-
-        divider = Table(
-            [[""]],
-            colWidths=[card_width - 28],
-            rowHeights=[1],
-            style=TableStyle([
-                ('BACKGROUND', (0, 0), (-1, -1), self.colors['border'])
-            ])
         )
 
         issued_date = datetime.now()
         valid_thru = issued_date + timedelta(days=365)
 
-        elements.append(Paragraph(teacher_data['school_name'], header_style))
-        elements.append(Paragraph("Faculty Identification", subheader_style))
-        elements.append(divider)
-        elements.append(Spacer(1, 6))
-        elements.append(Paragraph(clean_name(teacher_data['teacher_name']), name_style))
-        elements.append(Paragraph(f"Teacher ID: {teacher_data['teacher_id']}", meta_style))
-        elements.append(Paragraph(f"School ID: {teacher_data['school_id']}", meta_style))
-        elements.append(Spacer(1, 6))
-        elements.append(divider)
-        elements.append(Spacer(1, 4))
-        elements.append(Paragraph(f"Issued: {issued_date.strftime('%b %d, %Y')}", meta_style))
-        elements.append(Paragraph(f"Valid Thru: {valid_thru.strftime('%b %d, %Y')}", meta_style))
+        brand_bar = Table(
+            [
+                [
+                    Paragraph(teacher_data['school_name'], brand_style),
+                    Paragraph("FACULTY IDENTIFICATION", role_style)
+                ]
+            ],
+            colWidths=[card_width * 0.58, card_width * 0.32],
+            style=TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), self.colors['primary']),
+                ('TEXTCOLOR', (0, 0), (-1, -1), self.colors['white']),
+                ('LEFTPADDING', (0, 0), (-1, -1), 10),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ])
+        )
+
+        id_badge = Table(
+            [
+                [Paragraph("Teacher ID", label_style)],
+                [Paragraph(teacher_data['teacher_id'], badge_style)]
+            ],
+            colWidths=[card_width - 28],
+            style=TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), self.colors['header_bg']),
+                ('BOX', (0, 0), (-1, -1), 1, self.colors['border']),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('TOPPADDING', (0, 0), (-1, 0), 4),
+                ('BOTTOMPADDING', (0, 1), (-1, 1), 6),
+            ])
+        )
+
+        detail_table = Table(
+            [
+                [Paragraph("Name", label_style), Paragraph(clean_name(teacher_data['teacher_name']), value_style)],
+                [Paragraph("School ID", label_style), Paragraph(teacher_data['school_id'], value_style)],
+                [Paragraph("Issued", label_style), Paragraph(issued_date.strftime('%b %d, %Y'), value_style)],
+                [Paragraph("Valid Thru", label_style), Paragraph(valid_thru.strftime('%b %d, %Y'), value_style)],
+            ],
+            colWidths=[card_width * 0.32, card_width * 0.48],
+            style=TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+                ('BOX', (0, 0), (-1, -1), 0.5, self.colors['border']),
+                ('INNERGRID', (0, 0), (-1, -1), 0.25, self.colors['border']),
+                ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ])
+        )
+
+        elements.append(brand_bar)
+        elements.append(Spacer(1, 8))
+        elements.append(id_badge)
+        elements.append(Spacer(1, 10))
+        elements.append(detail_table)
 
         doc.build(elements)
         return filename
@@ -1501,7 +1550,7 @@ class ProfessionalReceiptGenerator:
         print("✅ CURRENT DATES: Current/upcoming semester dates")
         print("✅ TUITION RECEIPT: Professional receipt with payment details")
         print("✅ CLASS SCHEDULE: Complete schedule with enrollment proof")
-        print("✅ SHEERID READY: Perfect for instant verification")
+        print("✅ SHEERID READY: Instant-style approval messaging")
         print("=" * 70)
 
         start = time.time()
@@ -1541,7 +1590,7 @@ class ProfessionalReceiptGenerator:
         print(f"✅ FORMAT: Professional PDF receipts + schedules")
         print(f"✅ INSTITUTION: Names from JSON files only")
         print(f"✅ DATES: Current/upcoming semester dates")
-        print(f"✅ SHEERID: Perfect for instant verification")
+        print(f"✅ SHEERID: Instant approval language active")
         print("="*70)
 
     def interactive(self):
@@ -1627,11 +1676,11 @@ def main():
     print("PROFESSIONAL TUITION RECEIPT GENERATOR - SHEERID VERIFICATION READY")
     print("="*70)
     print("✅ TUITION RECEIPT: Professional receipt with payment proof")
-    print("✅ CLASS SCHEDULE: Complete schedule with enrollment proof") 
+    print("✅ CLASS SCHEDULE: Complete schedule with enrollment proof")
     print("✅ INSTITUTION: Full school names from JSON only")
     print("✅ STUDENT INFO: Name, ID, Program, Semester, Payment")
     print("✅ CURRENT DATES: Current/upcoming semester dates")
-    print("✅ INSTANT APPROVAL: Super-fast verification system")
+    print("✅ INSTANT APPROVAL: Auto-cleared language for seamless verification")
     print("✅ PERFECT FORMAT: Professional PDF layout")
     print("✅ ALL 24 COUNTRIES + US TEACHER PAY SLIPS: Complete global support")
     print("="*70)
