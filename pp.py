@@ -52,12 +52,13 @@ class ChatGPTSignupTripleMethod:
     ChatGPT Auto Signup - TRIPLE METHOD VERSION
     Choose between:
     1. 🏪 Alfashop Tmail API (12 custom domains)
-    2. 📮 Cekmail Tmail API (cekmail.com)
-    3. 🌐 Temp-Mail.io API (13 temp-mail domains)
-    4. 📧 Gmail IMAP (custom domain + Gmail)
-    5. 🔮 Generator.email (Random CapCut-style domains)
-    6. 🎯 Generator.email (Custom domain)
-    7. 📨 Generator.email (OTP fetch only)
+    2. 📨 Jemuje Tmail API (3 custom domains)
+    3. 📮 Cekmail Tmail API (cekmail.com)
+    4. 🌐 Temp-Mail.io API (13 temp-mail domains)
+    5. 📧 Gmail IMAP (custom domain + Gmail)
+    6. 🔮 Generator.email (Random CapCut-style domains)
+    7. 🎯 Generator.email (Custom domain)
+    8. 📨 Generator.email (OTP fetch only)
     By: @itsmeaab
     """
     
@@ -77,6 +78,13 @@ class ChatGPTSignupTripleMethod:
         'premiumwithalfa.my.id',
         'alfakalcer.biz.id'
     ]
+
+    # Jemuje custom domains
+    JEMUJE_DOMAINS = [
+        'darosah.my.id',
+        'gamaliya.my.id',
+        'ramsis.my.id'
+    ]
     
     # Temp-mail.io domains
     TEMP_MAIL_DOMAINS = [
@@ -90,6 +98,7 @@ class ChatGPTSignupTripleMethod:
 
     def __init__(self, gmail_user: str, gmail_password: str, alfashop_api_key: str = None,
                  cekmail_api_key: str = None,
+                 jemuje_api_key: str = None,
                  thread_id: int = 0, method: str = 'alfashop', user_agent: Optional[str] = None):
         self.auth_url = "https://auth.openai.com"
         self.chatgpt_url = "https://chatgpt.com"
@@ -101,6 +110,10 @@ class ChatGPTSignupTripleMethod:
         # Alfashop API
         self.alfashop_api_key = alfashop_api_key or "K3UyGiVOrN6aSvP9RXZ0"
         self.alfashop_base_url = "https://alfashop.ragn.web.id/api"
+
+        # Jemuje API
+        self.jemuje_api_key = jemuje_api_key or "DZVBRbQ6SdeFXv7GUirx"
+        self.jemuje_base_url = "https://jemuje.com/api"
 
         # Cekmail Tmail API (dedicated key + single-domain service)
         self.cekmail_api_key = cekmail_api_key or "HuXcwajFG9PvtZoN6Tq7"
@@ -141,6 +154,7 @@ class ChatGPTSignupTripleMethod:
         timestamp = time.strftime("%H:%M:%S")
         method_icons = {
             'alfashop': '🏪',
+            'jemuje': '📨',
             'cekmail': '📮',
             'tempmail': '🌐',
             'imap': '📧',
@@ -222,6 +236,41 @@ class ChatGPTSignupTripleMethod:
                 self.log(f"❌ API failed: {response.status_code}")
                 return None
             
+        except Exception as e:
+            self.log(f"❌ Error: {e}")
+            return None
+
+    # ==================== METHOD 1A: JEMUJE TMAIL ====================
+
+    def generate_jemuje_email(self) -> Optional[str]:
+        """
+        📨 METHOD 1A: Generate email using Jemuje Tmail API
+        Returns: email address
+        """
+        try:
+            domain = random.choice(self.JEMUJE_DOMAINS)
+
+            url = f"{self.jemuje_base_url}/email/create/{self.jemuje_api_key}"
+
+            response = self.session.get(
+                url,
+                params={'domain': domain},
+                timeout=10
+            )
+
+            if response.ok:
+                email_address = response.text.strip()
+
+                if '@' in email_address and '.' in email_address:
+                    self.log(f"✅ Email: {email_address}")
+                    return email_address
+                else:
+                    self.log(f"⚠️  Invalid: {email_address}")
+                    return None
+            else:
+                self.log(f"❌ API failed: {response.status_code}")
+                return None
+
         except Exception as e:
             self.log(f"❌ Error: {e}")
             return None
@@ -393,6 +442,88 @@ class ChatGPTSignupTripleMethod:
             
             time.sleep(3)
         
+        self.log(f"❌ Timeout ({max_wait}s)")
+        return None
+
+    def get_otp_from_jemuje(self, email_address: str, max_wait: int = 120) -> Optional[str]:
+        """📨 METHOD 1A: Get OTP from Jemuje Tmail API"""
+        self.log(f"⏳ Checking Jemuje (max {max_wait}s)...")
+        start_time = time.time()
+        check_count = 0
+
+        endpoint_patterns = [
+            f"email/{email_address}/messages/{self.jemuje_api_key}",
+            f"messages/{email_address}/{self.jemuje_api_key}",
+            f"inbox/{email_address}/{self.jemuje_api_key}",
+            f"mail/{email_address}/{self.jemuje_api_key}",
+        ]
+
+        while (time.time() - start_time) < max_wait:
+            try:
+                check_count += 1
+
+                for endpoint in endpoint_patterns:
+                    try:
+                        url = f"{self.jemuje_base_url}/{endpoint}"
+                        response = self.session.get(url, timeout=10)
+
+                        if response.ok:
+                            content = response.text.strip()
+
+                            if not content or len(content) < 20:
+                                continue
+
+                            try:
+                                import json
+                                data = json.loads(content)
+
+                                messages = None
+                                if isinstance(data, list) and len(data) > 0:
+                                    messages = data
+                                elif isinstance(data, dict):
+                                    messages = data.get('messages') or data.get('data') or data.get('emails')
+
+                                if messages:
+                                    message = messages[0] if isinstance(messages, list) else messages
+
+                                    html_body = ''
+                                    if isinstance(message, dict):
+                                        html_body = (
+                                            message.get('html') or
+                                            message.get('body_html') or
+                                            message.get('html_body') or
+                                            message.get('content') or
+                                            message.get('body') or
+                                            str(message)
+                                        )
+                                    else:
+                                        html_body = str(message)
+
+                                    otp = self.extract_otp_from_html(html_body)
+                                    if otp:
+                                        elapsed = time.time() - start_time
+                                        self.log(f"🔑 OTP: {otp} ({elapsed:.1f}s)")
+                                        return otp
+
+                            except json.JSONDecodeError:
+                                otp = self.extract_otp_from_html(content)
+                                if otp:
+                                    elapsed = time.time() - start_time
+                                    self.log(f"🔑 OTP: {otp} ({elapsed:.1f}s)")
+                                    return otp
+
+                    except:
+                        continue
+
+                if check_count % 10 == 0:
+                    elapsed = time.time() - start_time
+                    self.log(f"⏳ Waiting... ({elapsed:.0f}s)")
+
+            except:
+                pass
+
+            time.sleep(3)
+
         self.log(f"❌ Timeout ({max_wait}s)")
         return None
 
@@ -887,6 +1018,9 @@ class ChatGPTSignupTripleMethod:
             if self.method == 'alfashop':
                 code = self.get_otp_from_alfashop(email, max_wait=120)
 
+            elif self.method == 'jemuje':
+                code = self.get_otp_from_jemuje(email, max_wait=120)
+
             elif self.method == 'cekmail':
                 code = self.get_otp_from_cekmail(email, max_wait=120)
 
@@ -925,7 +1059,7 @@ class ChatGPTSignupTripleMethod:
 
 def create_single_account(args):
     """Worker function"""
-    thread_id, gmail_user, gmail_password, alfashop_api_key, cekmail_api_key, method, domain, password = args
+    thread_id, gmail_user, gmail_password, alfashop_api_key, cekmail_api_key, jemuje_api_key, method, domain, password = args
     
     try:
         bot = ChatGPTSignupTripleMethod(
@@ -933,6 +1067,7 @@ def create_single_account(args):
             gmail_password=gmail_password,
             alfashop_api_key=alfashop_api_key,
             cekmail_api_key=cekmail_api_key,
+            jemuje_api_key=jemuje_api_key,
             thread_id=thread_id,
             method=method,
             user_agent=generate_user_agent()
@@ -943,6 +1078,9 @@ def create_single_account(args):
         
         if method == 'alfashop':
             email_address = bot.generate_alfashop_email()
+
+        elif method == 'jemuje':
+            email_address = bot.generate_jemuje_email()
 
         elif method == 'cekmail':
             email_address = bot.generate_cekmail_email()
@@ -1009,38 +1147,45 @@ def get_user_input():
     print("="*80)
     print("🚀 ChatGPT Auto Signup - TRIPLE METHOD VERSION")
     print("   1. 🏪 Alfashop Tmail (12 domains, default: alfashop1234)")
-    print("   2. 📮 Cekmail Tmail (cekmail.com, default key provided, pass Premium12121)")
-    print("   3. 🌐 Temp-Mail.io (13 domains, default: Meow@1234567)")
-    print("   4. 📧 Gmail IMAP (needs setup, default: Meow@1234567)")
-    print("   5. 🔮 Generator.email (Random CapCut domains)")
-    print("   6. 🎯 Generator.email (Custom domain)")
-    print("   7. 📨 Generator.email (OTP fetch only)")
+    print("   2. 📨 Jemuje Tmail (3 domains, default: freepalestine)")
+    print("   3. 📮 Cekmail Tmail (cekmail.com, default key provided, pass Premium12121)")
+    print("   4. 🌐 Temp-Mail.io (13 domains, default: Meow@1234567)")
+    print("   5. 📧 Gmail IMAP (needs setup, default: Meow@1234567)")
+    print("   6. 🔮 Generator.email (Random CapCut domains)")
+    print("   7. 🎯 Generator.email (Custom domain)")
+    print("   8. 📨 Generator.email (OTP fetch only)")
     print("   By: @itsmeaab")
     print("="*80)
-    
+
     # Method selection
     print("\n📊 SELECT METHOD:")
-    method_choice = input("Enter method [1=Alfashop, 2=Cekmail, 3=Temp-Mail, 4=IMAP, 5=GenAuto, 6=GenCustom, 7=GenOTP] (default 1): ").strip()
+    method_choice = input("Enter method [1=Alfashop, 2=Jemuje, 3=Cekmail, 4=Temp-Mail, 5=IMAP, 6=GenAuto, 7=GenCustom, 8=GenOTP] (default 1): ").strip()
 
-    if method_choice == '7':
+    if method_choice == '8':
         print("📨 Selected: Generator.email OTP fetch only")
         interactive_generator_otp_lookup()
         raise SystemExit(0)
 
     # ---------------- METHOD 2 ----------------
     if method_choice == '2':
+        method = 'jemuje'
+        domain = None
+        print("✅ Selected: Jemuje Tmail")
+
+    # ---------------- METHOD 3 ----------------
+    elif method_choice == '3':
         method = 'cekmail'
         domain = None
         print("✅ Selected: Cekmail Tmail")
 
-    # ---------------- METHOD 3 ----------------
-    elif method_choice == '3':
+    # ---------------- METHOD 4 ----------------
+    elif method_choice == '4':
         method = 'tempmail'
         domain = None
         print("✅ Selected: Temp-Mail.io")
 
-    # ---------------- METHOD 4 ----------------
-    elif method_choice == '4':
+    # ---------------- METHOD 5 ----------------
+    elif method_choice == '5':
         method = 'imap'
         print("\n🌐 Available IMAP domains:")
         domains = ['dressrosa.me', 'puella.shop', 'wemel.top']
@@ -1051,14 +1196,14 @@ def get_user_input():
         domain = domains[domain_choice - 1]
         print(f"✅ Selected: Gmail IMAP → {domain}")
 
-    # ---------------- METHOD 5 ----------------
-    elif method_choice == '5':
+    # ---------------- METHOD 6 ----------------
+    elif method_choice == '6':
         method = 'generator_auto'
         domain = None
         print("🔮 Selected: Generator.email (Random CapCut-style domain)")
 
-    # ---------------- METHOD 6 ----------------
-    elif method_choice == '6':
+    # ---------------- METHOD 7 ----------------
+    elif method_choice == '7':
         method = 'generator_custom'
         domain = input("🌐 Enter custom domain (example: mailpro.org): ").strip()
         print(f"🎯 Selected: Generator.email Custom → {domain}")
@@ -1097,6 +1242,8 @@ def get_user_input():
     # ---------------- Default password logic ----------------
     if method == 'cekmail':
         default_pass = "Premium12121"
+    elif method == 'jemuje':
+        default_pass = "freepalestine"
     elif method == 'alfashop':
         default_pass = "alfashop1234"
     else:
@@ -1116,6 +1263,7 @@ def main():
     GMAIL_APP_PASSWORD = 'ftljxjidduzsqxob'
     ALFASHOP_API_KEY = 'K3UyGiVOrN6aSvP9RXZ0'
     CEKMAIL_API_KEY = 'HuXcwajFG9PvtZoN6Tq7'
+    JEMUJE_API_KEY = 'DZVBRbQ6SdeFXv7GUirx'
     
     # Get config
     num_accounts, max_workers, method, domain, password = get_user_input()
@@ -1128,6 +1276,8 @@ def main():
         print(f"   Domain: {domain}")
     elif method == 'alfashop':
         print(f"   Domains: {len(ChatGPTSignupTripleMethod.ALFASHOP_DOMAINS)} Alfashop domains")
+    elif method == 'jemuje':
+        print(f"   Domains: {len(ChatGPTSignupTripleMethod.JEMUJE_DOMAINS)} Jemuje domains")
     elif method == 'cekmail':
         print(f"   Domain: {ChatGPTSignupTripleMethod.CEKMAIL_DEFAULT_DOMAIN} (Cekmail)")
     else:
@@ -1161,6 +1311,7 @@ def main():
                     GMAIL_APP_PASSWORD,
                     ALFASHOP_API_KEY,
                     CEKMAIL_API_KEY,
+                    JEMUJE_API_KEY,
                     method,
                     domain,
                     password
@@ -1216,12 +1367,13 @@ def main():
         print("\n✅ Successfully Created:")
         print("-" * 80)
         for result in results:
-            if result['success']:
-                method_icons = {
-                    'alfashop': '🏪',
-                    'cekmail': '📮',
-                    'tempmail': '🌐',
-                    'imap': '📧',
+                if result['success']:
+                    method_icons = {
+                        'alfashop': '🏪',
+                        'jemuje': '📨',
+                        'cekmail': '📮',
+                        'tempmail': '🌐',
+                        'imap': '📧',
                     'generator_auto': '🔮',
                     'generator_custom': '🎯'
                 }
@@ -1238,7 +1390,7 @@ def otp_fetch_cli() -> bool:
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--otp-only", action="store_true", help="Fetch an OTP instead of creating accounts")
     parser.add_argument("--generator-otp", action="store_true", help="Fetch an OTP from generator.email only")
-    parser.add_argument("--method", choices=["alfashop", "cekmail", "tempmail", "imap", "generator_auto", "generator_custom"], default="imap")
+    parser.add_argument("--method", choices=["alfashop", "jemuje", "cekmail", "tempmail", "imap", "generator_auto", "generator_custom"], default="imap")
     parser.add_argument("--email", dest="email_address", help="Target email address to poll for the OTP")
     parser.add_argument("--token", help="API token (Temp-Mail.io)")
     parser.add_argument("--custom-domain", dest="custom_domain", help="generator.email custom domain when using generator_custom")
@@ -1283,6 +1435,8 @@ def otp_fetch_cli() -> bool:
         otp = checker.get_otp_from_tempmail(args.email_address, args.token, max_wait=args.max_wait)
     elif args.method == "alfashop":
         otp = checker.get_otp_from_alfashop(args.email_address, max_wait=args.max_wait)
+    elif args.method == "jemuje":
+        otp = checker.get_otp_from_jemuje(args.email_address, max_wait=args.max_wait)
     elif args.method == "cekmail":
         otp = checker.get_otp_from_cekmail(args.email_address, max_wait=args.max_wait)
     elif args.method == "imap":
