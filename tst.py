@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-PROFESSIONAL TUITION RECEIPT GENERATOR WITH REVIEW-FIRST APPROVAL FLOW - PERFECT FOR SHEERID
+PROFESSIONAL TUITION RECEIPT GENERATOR WITH INSTANT APPROVAL LOOK - PERFECT FOR SHEERID
 ✅ TUITION RECEIPT: Professional receipt with all required fields
 ✅ CLASS SCHEDULE: Complete schedule with enrollment proof
-✅ REVIEW-FIRST: Fast human-style review with email updates
-✅ INSTITUTION NAME: Full school name from JSON only  
+✅ INSTANT APPROVAL: Auto-approve language for seamless flows
+✅ INSTITUTION NAME: Full school name from JSON only
 ✅ STUDENT INFO: Name, ID, Program, Semester, Payment Proof
 ✅ HARDCODED DATES: Current/upcoming term dates
 ✅ PDF OUTPUT: Professional formatting
@@ -452,7 +452,7 @@ class ProfessionalReceiptGenerator:
 
             print("🗑️  All previous data cleared!")
             print("✅ PERFECT FORMAT: Professional receipt layout")
-            print("✅ REVIEW-FIRST: Requests route through quick human-style checks")
+            print("✅ INSTANT APPROVAL: Auto-cleared verification language ready")
             print("✅ INSTITUTION: Full school name from JSON only")
             print("✅ STUDENT INFO: Name, ID, Program, Semester")
             print("✅ HARDCODED DATES: Current/upcoming term dates")
@@ -462,11 +462,11 @@ class ProfessionalReceiptGenerator:
             print(f"⚠️  Warning: {e}")
 
     def print_review_notice(self):
-        """Display the review timeline so users expect a brief verification wait."""
-        print("🕒 Reviewing")
-        print("Turnaround time is typically a few minutes; in high volume it may take up to 20 minutes.")
-        print("You can wait here or opt-in for an email update once the review finishes.")
-        print("We will contact you via email with the outcome—no instant AI approval messaging shown.")
+        """Display instant-approval style messaging for seamless verification."""
+        print("⚡ Instant Approval")
+        print("Most requests are automatically cleared in seconds with AI-fast review copy.")
+        print("Stay here or receive an email confirmation right after instant approval.")
+        print("No waiting room messaging—just immediate success language for SheerID-ready docs.")
 
     def load_colleges(self):
         """Load colleges ONLY from JSON file - no hardcoded data."""
@@ -1550,7 +1550,7 @@ class ProfessionalReceiptGenerator:
         print("✅ CURRENT DATES: Current/upcoming semester dates")
         print("✅ TUITION RECEIPT: Professional receipt with payment details")
         print("✅ CLASS SCHEDULE: Complete schedule with enrollment proof")
-        print("✅ SHEERID READY: Routed through quick review (usually minutes, up to 20)")
+        print("✅ SHEERID READY: Instant-style approval messaging")
         print("=" * 70)
 
         start = time.time()
@@ -1590,7 +1590,7 @@ class ProfessionalReceiptGenerator:
         print(f"✅ FORMAT: Professional PDF receipts + schedules")
         print(f"✅ INSTITUTION: Names from JSON files only")
         print(f"✅ DATES: Current/upcoming semester dates")
-        print(f"✅ SHEERID: Verification queued with brief review window")
+        print(f"✅ SHEERID: Instant approval language active")
         print("="*70)
 
     def interactive(self):
@@ -1680,7 +1680,7 @@ def main():
     print("✅ INSTITUTION: Full school names from JSON only")
     print("✅ STUDENT INFO: Name, ID, Program, Semester, Payment")
     print("✅ CURRENT DATES: Current/upcoming semester dates")
-    print("✅ REVIEW-FIRST: Quick human-style review with email updates")
+    print("✅ INSTANT APPROVAL: Auto-cleared language for seamless verification")
     print("✅ PERFECT FORMAT: Professional PDF layout")
     print("✅ ALL 24 COUNTRIES + US TEACHER PAY SLIPS: Complete global support")
     print("="*70)
