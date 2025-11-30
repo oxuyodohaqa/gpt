@@ -51,7 +51,7 @@ http = requests.Session()
 http.mount("https://", HTTPAdapter(max_retries=retry_strategy))
 http.mount("http://", HTTPAdapter(max_retries=retry_strategy))
 
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8292127678:AAGDhFHjZpEld0nyzJKKa2HkG7zZ-ch_t0g")
+BOT_TOKEN = os.getenv("AIRWALLEX_BOT_TOKEN", "8292127678:AAGDhFHjZpEld0nyzJKKa2HkG7zZ-ch_t0g")
 SUPER_ADMIN_ID = 7680006005
 ADMIN_IDS = {SUPER_ADMIN_ID}
 extra_admins = os.getenv("ADMIN_IDS", "").split(",") if os.getenv("ADMIN_IDS") else []
