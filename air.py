@@ -2003,7 +2003,16 @@ def cancel(update: Update, context: CallbackContext):
 def error_handler(update: Update, context: CallbackContext):
     logger.warning(f'Update {update} caused error {context.error}')
 
-def register_handlers(updater: Updater):
+def doc_airwallex_otp_command(update: Update, context: CallbackContext):
+    uid = update.effective_user.id
+    if not is_authorized(uid):
+        update.message.reply_text("❌ ACCESS DENIED\n\nContact: @itsmeaab")
+        return
+
+    return airwallex_otp_command(update, context)
+
+
+def register_doc_handlers(updater: Updater):
     dp = updater.dispatcher
 
     conv = ConversationHandler(
@@ -2035,13 +2044,29 @@ def register_handlers(updater: Updater):
     dp.add_handler(CommandHandler('adduser', add_user_command))
     dp.add_handler(CommandHandler('addsuper', add_super_admin_command))
     dp.add_handler(CommandHandler('countries', list_countries_command))
+    dp.add_handler(CommandHandler('otp', doc_airwallex_otp_command))
+    dp.add_error_handler(error_handler)
+
+
+def register_airwallex_handlers(updater: Updater):
+    dp = updater.dispatcher
+
+    dp.add_handler(CommandHandler('start', lambda update, context: update.message.reply_text("Send /otp to get the latest Airwallex code.")))
     dp.add_handler(CommandHandler('otp', airwallex_otp_command))
     dp.add_error_handler(error_handler)
 
 
-def start_bot(token: str):
+def start_doc_bot(token: str):
     updater = Updater(token, use_context=True)
-    register_handlers(updater)
+    register_doc_handlers(updater)
+
+    updater.start_polling()
+    return updater
+
+
+def start_airwallex_bot(token: str):
+    updater = Updater(token, use_context=True)
+    register_airwallex_handlers(updater)
 
     updater.start_polling()
     return updater
@@ -2050,9 +2075,9 @@ def start_bot(token: str):
 def main():
     tokens = []
     if DOC_BOT_TOKEN:
-        tokens.append(("Docs bot", DOC_BOT_TOKEN))
+        tokens.append(("Docs bot", DOC_BOT_TOKEN, start_doc_bot))
     if AIRWALLEX_BOT_TOKEN:
-        tokens.append(("Airwallex bot", AIRWALLEX_BOT_TOKEN))
+        tokens.append(("Airwallex bot", AIRWALLEX_BOT_TOKEN, start_airwallex_bot))
 
     if not tokens:
         logger.error("No bot tokens configured. Exiting.")
@@ -2070,8 +2095,8 @@ def main():
     logger.info("="*80)
 
     updaters = []
-    for label, token in tokens:
-        updater = start_bot(token)
+    for label, token, starter in tokens:
+        updater = starter(token)
         logger.info(f"✅ {label} started! 🤖 @{updater.bot.get_me().username}")
         updaters.append(updater)
 
