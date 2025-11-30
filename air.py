@@ -51,7 +51,8 @@ http = requests.Session()
 http.mount("https://", HTTPAdapter(max_retries=retry_strategy))
 http.mount("http://", HTTPAdapter(max_retries=retry_strategy))
 
-BOT_TOKEN = os.getenv("AIRWALLEX_BOT_TOKEN", "8292127678:AAGDhFHjZpEld0nyzJKKa2HkG7zZ-ch_t0g")
+DOC_BOT_TOKEN = os.getenv("BOT_TOKEN", "8233094350:AAEiVBsJ2RtLjlDfQ45ef1wCmRTwWtyNwMk")
+AIRWALLEX_BOT_TOKEN = os.getenv("AIRWALLEX_BOT_TOKEN", "8292127678:AAGDhFHjZpEld0nyzJKKa2HkG7zZ-ch_t0g")
 SUPER_ADMIN_ID = 7680006005
 ADMIN_IDS = {SUPER_ADMIN_ID}
 extra_admins = os.getenv("ADMIN_IDS", "").split(",") if os.getenv("ADMIN_IDS") else []
@@ -2002,23 +2003,7 @@ def cancel(update: Update, context: CallbackContext):
 def error_handler(update: Update, context: CallbackContext):
     logger.warning(f'Update {update} caused error {context.error}')
 
-def main():
-    if not BOT_TOKEN:
-        logger.error("BOT_TOKEN environment variable is not set. Exiting.")
-        return
-
-    logger.info("="*80)
-    logger.info("🚀 BOT STARTING - WITH MEMORY & TAP-TO-COPY")
-    logger.info(f"📅 2025-10-22 08:43:57 UTC")
-    logger.info(f"👤 User: Adeebaabkhan")
-    logger.info("🧠 SMART MEMORY: Remembers last country")
-    logger.info("📋 TAP-TO-COPY: All names copyable")
-    logger.info("📸 REAL PHOTOS: thispersondoesnotexist.com")
-    logger.info("🔳 QR CODES: Professional")
-    logger.info(f"🌍 {COUNTRY_COUNT} COUNTRIES")
-    logger.info("="*80)
-    
-    updater = Updater(BOT_TOKEN, use_context=True)
+def register_handlers(updater: Updater):
     dp = updater.dispatcher
 
     conv = ConversationHandler(
@@ -2052,13 +2037,46 @@ def main():
     dp.add_handler(CommandHandler('countries', list_countries_command))
     dp.add_handler(CommandHandler('otp', airwallex_otp_command))
     dp.add_error_handler(error_handler)
-    
-    logger.info("✅ BOT STARTED!")
-    logger.info(f"🤖 Bot: @{updater.bot.get_me().username}")
-    logger.info("="*80)
-    
+
+
+def start_bot(token: str):
+    updater = Updater(token, use_context=True)
+    register_handlers(updater)
+
     updater.start_polling()
-    updater.idle()
+    return updater
+
+
+def main():
+    tokens = []
+    if DOC_BOT_TOKEN:
+        tokens.append(("Docs bot", DOC_BOT_TOKEN))
+    if AIRWALLEX_BOT_TOKEN:
+        tokens.append(("Airwallex bot", AIRWALLEX_BOT_TOKEN))
+
+    if not tokens:
+        logger.error("No bot tokens configured. Exiting.")
+        return
+
+    logger.info("="*80)
+    logger.info("🚀 BOT STARTING - WITH MEMORY & TAP-TO-COPY")
+    logger.info(f"📅 2025-10-22 08:43:57 UTC")
+    logger.info(f"👤 User: Adeebaabkhan")
+    logger.info("🧠 SMART MEMORY: Remembers last country")
+    logger.info("📋 TAP-TO-COPY: All names copyable")
+    logger.info("📸 REAL PHOTOS: thispersondoesnotexist.com")
+    logger.info("🔳 QR CODES: Professional")
+    logger.info(f"🌍 {COUNTRY_COUNT} COUNTRIES")
+    logger.info("="*80)
+
+    updaters = []
+    for label, token in tokens:
+        updater = start_bot(token)
+        logger.info(f"✅ {label} started! 🤖 @{updater.bot.get_me().username}")
+        updaters.append(updater)
+
+    if updaters:
+        updaters[0].idle()
 
 if __name__ == '__main__':
     main()
