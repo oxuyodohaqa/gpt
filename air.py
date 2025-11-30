@@ -1331,10 +1331,6 @@ def airwallex_otp_command(update: Update, context: CallbackContext):
     uid = update.effective_user.id
     message = update.effective_message
 
-    if not is_authorized(uid):
-        message.reply_text("❌ ACCESS DENIED\n\nContact: @itsmeaab")
-        return
-
     try:
         otp, subject, sent_at = fetch_airwallex_otp()
         date_text = sent_at.strftime('%Y-%m-%d %H:%M:%S %Z') if sent_at else "Unknown time"
