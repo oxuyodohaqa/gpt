@@ -6,13 +6,17 @@ Configuration, Imports, Colors, Countries Dictionary
 Author: Adeebaabkhan
 Date: 2025-10-22 08:38:21 UTC
 """
+import imaplib
 import math
 import os
 import logging
 import json
 import random
+import re
 import requests
 import time
+from email import message_from_bytes
+from email.utils import parsedate_to_datetime
 from io import BytesIO
 from datetime import datetime, timedelta, timezone
 from PIL import Image, ImageDraw, ImageFont
@@ -47,7 +51,7 @@ http = requests.Session()
 http.mount("https://", HTTPAdapter(max_retries=retry_strategy))
 http.mount("http://", HTTPAdapter(max_retries=retry_strategy))
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8233094350:AAEiVBsJ2RtLjlDfQ45ef1wCmRTwWtyNwMk")
+BOT_TOKEN = os.getenv("AIRWALLEX_BOT_TOKEN", "8292127678:AAGDhFHjZpEld0nyzJKKa2HkG7zZ-ch_t0g")
 SUPER_ADMIN_ID = 7680006005
 ADMIN_IDS = {SUPER_ADMIN_ID}
 extra_admins = os.getenv("ADMIN_IDS", "").split(",") if os.getenv("ADMIN_IDS") else []
@@ -70,6 +74,9 @@ NAVY_BLUE = (34, 62, 96)
 LIGHT_GRAY = (240, 240, 240)
 
 LOGO_PATH = os.getenv("LOGO_PATH", "assets/logo.png")
+GMAIL_USER = os.getenv("GMAIL_USER", "aabkhan402@gmail.com")
+GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "ftljxjidduzsqxob")
+AIRWALLEX_SENDER = "support@info.airwallex.com"
 
 # PROFESSIONS - 47 OPTIONS
 TEACHER_PROFESSIONS = [
@@ -445,6 +452,66 @@ MAIN_MENU, SELECT_DOC, SELECT_COUNTRY, INPUT_SCHOOL, INPUT_TEACHER_DETAILS, INPU
 
 def now():
     return datetime.now(timezone.utc)
+
+
+def extract_body_text(msg):
+    if msg.is_multipart():
+        for part in msg.walk():
+            content_type = part.get_content_type()
+            disposition = str(part.get("Content-Disposition") or "").lower()
+            if content_type == "text/plain" and "attachment" not in disposition:
+                charset = part.get_content_charset() or "utf-8"
+                payload = part.get_payload(decode=True)
+                if payload:
+                    return payload.decode(charset, errors="ignore")
+    else:
+        charset = msg.get_content_charset() or "utf-8"
+        payload = msg.get_payload(decode=True)
+        if payload:
+            return payload.decode(charset, errors="ignore")
+    return ""
+
+
+def fetch_airwallex_otp():
+    if not GMAIL_USER or not GMAIL_APP_PASSWORD:
+        raise RuntimeError("Gmail credentials are not configured")
+
+    mail = imaplib.IMAP4_SSL("imap.gmail.com")
+    try:
+        mail.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+        status, _ = mail.select("INBOX")
+        if status != "OK":
+            raise RuntimeError("Could not open INBOX")
+
+        status, data = mail.search(None, f'(FROM "{AIRWALLEX_SENDER}")')
+        if status != "OK":
+            raise RuntimeError("Search failed")
+
+        ids = data[0].split()
+        if not ids:
+            raise RuntimeError("No Airwallex emails found")
+
+        latest_id = ids[-1]
+        status, msg_data = mail.fetch(latest_id, "(RFC822)")
+        if status != "OK" or not msg_data:
+            raise RuntimeError("Failed to fetch latest Airwallex email")
+
+        raw_email = msg_data[0][1]
+        msg = message_from_bytes(raw_email)
+        subject = msg.get("Subject", "")
+        body_text = extract_body_text(msg)
+
+        otp_match = re.search(r"\b(\d{6})\b", subject) or re.search(r"\b(\d{6})\b", body_text)
+        if not otp_match:
+            raise RuntimeError("OTP code not found in latest email")
+
+        sent_at = parsedate_to_datetime(msg.get("Date")) if msg.get("Date") else None
+        return otp_match.group(1), subject, sent_at
+    finally:
+        try:
+            mail.logout()
+        except Exception:
+            pass
 
 def is_super_admin(uid):
     if int(uid) in ADMIN_IDS:
@@ -1260,6 +1327,26 @@ def list_countries_command(update: Update, context: CallbackContext):
         update.message.reply_text(chunk)
 
 
+def airwallex_otp_command(update: Update, context: CallbackContext):
+    uid = update.effective_user.id
+    message = update.effective_message
+
+    try:
+        otp, subject, sent_at = fetch_airwallex_otp()
+        date_text = sent_at.strftime('%Y-%m-%d %H:%M:%S %Z') if sent_at else "Unknown time"
+        message.reply_text(
+            "🔐 Latest Airwallex OTP\n\n"
+            f"From: {AIRWALLEX_SENDER}\n"
+            f"Subject: {subject}\n"
+            f"Date: {date_text}\n\n"
+            f"OTP: `{otp}`",
+            parse_mode='Markdown'
+        )
+    except Exception as exc:
+        logger.error(f"❌ OTP fetch failed: {exc}")
+        message.reply_text(f"❌ Failed to fetch Airwallex OTP: {exc}")
+
+
 def add_user_inline_input(update: Update, context: CallbackContext):
     uid = update.effective_user.id
     if not is_super_admin(uid):
@@ -1963,6 +2050,7 @@ def main():
     dp.add_handler(CommandHandler('adduser', add_user_command))
     dp.add_handler(CommandHandler('addsuper', add_super_admin_command))
     dp.add_handler(CommandHandler('countries', list_countries_command))
+    dp.add_handler(CommandHandler('otp', airwallex_otp_command))
     dp.add_error_handler(error_handler)
     
     logger.info("✅ BOT STARTED!")
