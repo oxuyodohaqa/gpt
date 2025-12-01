@@ -2,6 +2,7 @@ const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs').promises;
 const fsSync = require('fs');
+const os = require('os');
 const path = require('path');
 const readline = require('readline');
 const config = require('./config.json');
@@ -53,6 +54,12 @@ const askQuestion = (question) => {
         rl.question(question, resolve);
     });
 };
+
+// Create a unique user data directory for each browser instance
+async function createIsolatedProfileDir(browserId) {
+    const tempPrefix = path.join(os.tmpdir(), `spotify-b-${browserId}-`);
+    return await fs.mkdtemp(tempPrefix);
+}
 
 // Load and manage links
 async function loadLinks() {
@@ -664,9 +671,12 @@ async function signupOnly() {
     browserCounter++;
     const browserId = browserCounter;
     const windowPos = getWindowPosition(browserId);
-    
+
+    const userDataDir = await createIsolatedProfileDir(browserId);
+
     const browser = await puppeteer.launch({
         headless: false,
+        ignoreDefaultArgs: ['--disable-extensions'],
         args: [
             "--no-sandbox",
             "--disable-setuid-sandbox",
@@ -682,7 +692,8 @@ async function signupOnly() {
             `--window-size=370,950`,
             `--window-position=${windowPos.x},${windowPos.y}`
         ],
-        defaultViewport: { width: 370, height: 950 }
+        defaultViewport: { width: 370, height: 950 },
+        userDataDir
     });
     
     try {
@@ -977,6 +988,9 @@ async function signupOnly() {
         try {
             await browser.close();
         } catch (e) {}
+        try {
+            await fs.rm(userDataDir, { recursive: true, force: true });
+        } catch (e) {}
     }
 }
 
@@ -1002,11 +1016,14 @@ async function signupAndVerify() {
     
     // ✅ Assign link to this specific browser
     assignLinkToBrowser(browserId, spotifyLink);
-    
+
     const windowPos = getWindowPosition(browserId);
-    
+
+    const userDataDir = await createIsolatedProfileDir(browserId);
+
     const browser = await puppeteer.launch({
         headless: false,
+        ignoreDefaultArgs: ['--disable-extensions'],
         args: [
             "--no-sandbox",
             "--disable-setuid-sandbox",
@@ -1022,7 +1039,8 @@ async function signupAndVerify() {
             `--window-size=370,950`,
             `--window-position=${windowPos.x},${windowPos.y}`
         ],
-        defaultViewport: { width: 370, height: 950 }
+        defaultViewport: { width: 370, height: 950 },
+        userDataDir
     });
     
     try {
@@ -1327,14 +1345,17 @@ async function signupAndVerify() {
 
     } catch (error) {
         console.log(`[B-${browserId}] ❌ Error: ${error.message}`);
-        
+
         // ✅ Return link to pool on error
         returnLinkToPool(browserId, spotifyLink);
-        
+
         return false; // ❌ Link returned to pool
     } finally {
         try {
             await browser.close();
+        } catch (e) {}
+        try {
+            await fs.rm(userDataDir, { recursive: true, force: true });
         } catch (e) {}
     }
 }
