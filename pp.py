@@ -165,25 +165,29 @@ class ChatGPTSignupTripleMethod:
         print(f"[{timestamp}] [{icon} T-{self.thread_id:03d}] {message}", flush=True)
     
     def generate_clean_username(self) -> str:
-        """Generate clean username"""
+        """Generate a sanitized username combining first/last names plus 4 digits."""
         try:
             from faker import Faker
-            fake = Faker()
-            first_name = re.sub(r'[^a-z]', '', fake.first_name().lower())
-            last_name = re.sub(r'[^a-z]', '', fake.last_name().lower())
+            fake = Faker("en_GB")
+            first_name = fake.first_name()
+            last_name = fake.last_name()
         except ImportError:
-            first_names = ['james', 'mary', 'john', 'patricia', 'robert', 'jennifer']
-            last_names = ['smith', 'johnson', 'williams', 'brown', 'jones']
+            first_names = ['James', 'Mary', 'John', 'Patricia', 'Robert', 'Jennifer']
+            last_names = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia']
             first_name = random.choice(first_names)
             last_name = random.choice(last_names)
-        
-        formats = [
-            f"{first_name}{last_name}",
-            f"{first_name}.{last_name}",
-            f"{first_name}_{last_name}",
-            first_name,
-        ]
-        return random.choice(formats)
+
+        def _clean_part(name: str, pad_char: str) -> str:
+            cleaned = re.sub(r'[^a-zA-Z0-9]', '', name)
+            if len(cleaned) >= 5:
+                return cleaned[:5]
+            return cleaned.ljust(5, pad_char)
+
+        clean_first = _clean_part(first_name, 'x')
+        clean_last = _clean_part(last_name, 'y')
+        random_digits = f"{random.randint(0, 9999):04d}"
+
+        return f"{clean_first}{clean_last}{random_digits}".lower()
     
     def generate_random_name(self) -> str:
         """Generate random first name for account"""
