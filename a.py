@@ -16,6 +16,7 @@ import tempfile
 import requests
 import subprocess
 import sys
+import re
 from datetime import datetime, timedelta
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 from typing import List, Dict, Optional
@@ -27,8 +28,8 @@ class ChatGPTAccountCreator:
         self.accounts_file = 'accounts.txt'
         self.admin_key = "Salah123.ss"
         self.email_api_url = "https://mailt.stafflazarus.com/api/get-last-email"
-        self.tmail_base_url = "https://userghost.com/api"
-        self.tmail_api_key = "MSU9cb6pJDH8RnFkWrmQ"
+        self.tmail_base_url = self.normalize_tmail_base(os.getenv("BASE", "https://userghost.com/api"))
+        self.tmail_api_key = (os.getenv("API_KEY", "MSU9cb6pJDH8RnFkWrmQ") or "").strip()
         self.created_accounts = []
         self.config_file = 'config.json'
         self.domains_file = 'domains.txt'
@@ -37,16 +38,42 @@ class ChatGPTAccountCreator:
         self.account_lock = threading.Lock()  # Thread-safe account saving
         self.pro_domains = self.load_domains()
         self.ensure_playwright_firefox()
+
+    def normalize_tmail_base(self, base_url: str) -> str:
+        """Ensure the Tmail base URL includes the /api suffix and no trailing slash."""
+        if not base_url:
+            return "https://userghost.com/api"
+
+        cleaned = base_url.strip().rstrip('/')
+        if not cleaned:
+            return "https://userghost.com/api"
+        if not cleaned.lower().endswith('/api'):
+            cleaned = f"{cleaned}/api"
+        return cleaned
         
     def log(self, message, level="INFO"):
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         log_message = f"[{timestamp}] [{level}] {message}"
         print(log_message)
     
+    def _to_bool(self, value, default: bool = False) -> bool:
+        """Normalize truthy/falsey values to a real boolean."""
+        if isinstance(value, bool):
+            return value
+
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in {"true", "1", "yes", "y", "on"}:
+                return True
+            if lowered in {"false", "0", "no", "n", "off"}:
+                return False
+
+        return default
+
     def load_config(self) -> dict:
         default_config = {
             'max_workers': 3,
-            'headless': True,
+            'headless': False,
             'slow_mo': 1000,
             'timeout': 30000,
             'password': None
@@ -62,7 +89,12 @@ class ChatGPTAccountCreator:
                         password = default_config['password']
                         if len(password) < 12:
                             self.log(f"⚠️ Warning: Password in config.json is less than 12 characters. ChatGPT requires at least 12 characters.", "WARNING")
-                    
+
+                    normalized_headless = self._to_bool(default_config.get('headless'), False)
+                    if normalized_headless != default_config.get('headless'):
+                        self.log("ℹ️ Converted headless value from config.json to a boolean. Use true/false next time for clarity.")
+                    default_config['headless'] = normalized_headless
+
                     return default_config
             else:
                 with open(self.config_file, 'w', encoding='utf-8') as f:
@@ -111,6 +143,10 @@ class ChatGPTAccountCreator:
 
     def fetch_tmail_domains(self) -> List[str]:
         """Fetch available domains from the Tmail API."""
+        if not self.tmail_api_key:
+            self.log("⚠️ Missing Tmail API key; using default domains list.", "WARNING")
+            return []
+
         try:
             response = requests.get(
                 f"{self.tmail_base_url}/domains/{self.tmail_api_key}", timeout=15
@@ -162,6 +198,10 @@ class ChatGPTAccountCreator:
     def create_tmail_email(self) -> Optional[str]:
         """Create an inbox using the Tmail API (UserGhost)."""
         if not self.pro_domains:
+            return None
+
+        if not self.tmail_api_key:
+            self.log("⚠️ Missing Tmail API key; cannot create Tmail inbox.", "WARNING")
             return None
 
         domain = random.choice(self.pro_domains)
@@ -312,6 +352,10 @@ class ChatGPTAccountCreator:
     def get_verification_code_from_tmail(self, email: str, max_wait: int = 120) -> Optional[str]:
         """Check the UserGhost Tmail inbox for a ChatGPT OTP."""
         if not email:
+            return None
+
+        if not self.tmail_api_key:
+            self.log("⚠️ Missing Tmail API key; skipping Tmail OTP fetch.", "WARNING")
             return None
 
         self.log(f"⏳ Checking Tmail inbox for {email} (max {max_wait}s)...")
@@ -465,9 +509,12 @@ class ChatGPTAccountCreator:
                     'marionette.enabled': False,
                 }
                 
+                headless = self.config.get('headless', False)
+                self.log(f"🎯 Launching Firefox with headless={headless}. Update headless in config.json to show or hide the browser window.")
+
                 context = await p.firefox.launch_persistent_context(
                     user_data_dir=temp_dir,
-                    headless=True,
+                    headless=headless,
                     viewport={'width': 1920, 'height': 1080},  # Match common resolution
                     user_agent=user_agent,
                     locale='en-US',  # Set locale
