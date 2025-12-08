@@ -43,10 +43,24 @@ class ChatGPTAccountCreator:
         log_message = f"[{timestamp}] [{level}] {message}"
         print(log_message)
     
+    def _to_bool(self, value, default: bool = False) -> bool:
+        """Normalize truthy/falsey values to a real boolean."""
+        if isinstance(value, bool):
+            return value
+
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in {"true", "1", "yes", "y", "on"}:
+                return True
+            if lowered in {"false", "0", "no", "n", "off"}:
+                return False
+
+        return default
+
     def load_config(self) -> dict:
         default_config = {
             'max_workers': 3,
-            'headless': True,
+            'headless': False,
             'slow_mo': 1000,
             'timeout': 30000,
             'password': None
@@ -62,7 +76,12 @@ class ChatGPTAccountCreator:
                         password = default_config['password']
                         if len(password) < 12:
                             self.log(f"⚠️ Warning: Password in config.json is less than 12 characters. ChatGPT requires at least 12 characters.", "WARNING")
-                    
+
+                    normalized_headless = self._to_bool(default_config.get('headless'), False)
+                    if normalized_headless != default_config.get('headless'):
+                        self.log("ℹ️ Converted headless value from config.json to a boolean. Use true/false next time for clarity.")
+                    default_config['headless'] = normalized_headless
+
                     return default_config
             else:
                 with open(self.config_file, 'w', encoding='utf-8') as f:
@@ -465,9 +484,12 @@ class ChatGPTAccountCreator:
                     'marionette.enabled': False,
                 }
                 
+                headless = self.config.get('headless', False)
+                self.log(f"🎯 Launching Firefox with headless={headless}. Update headless in config.json to show or hide the browser window.")
+
                 context = await p.firefox.launch_persistent_context(
                     user_data_dir=temp_dir,
-                    headless=True,
+                    headless=headless,
                     viewport={'width': 1920, 'height': 1080},  # Match common resolution
                     user_agent=user_agent,
                     locale='en-US',  # Set locale
