@@ -46,7 +46,7 @@ class ChatGPTAccountCreator:
     def load_config(self) -> dict:
         default_config = {
             'max_workers': 3,
-            'headless': True,
+            'headless': False,
             'slow_mo': 1000,
             'timeout': 30000,
             'password': None
@@ -467,7 +467,7 @@ class ChatGPTAccountCreator:
                 
                 context = await p.firefox.launch_persistent_context(
                     user_data_dir=temp_dir,
-                    headless=True,
+                    headless=self.config.get('headless', True),
                     viewport={'width': 1920, 'height': 1080},  # Match common resolution
                     user_agent=user_agent,
                     locale='en-US',  # Set locale
