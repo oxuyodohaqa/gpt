@@ -649,7 +649,6 @@ class ProfessionalReceiptGenerator:
             "Senior Lecturer", "Lecturer", "Adjunct Instructor"
         ]
         teacher_name = clean_name(f"{random.choice(teacher_titles)} {fake.first_name()} {fake.last_name()}")
-        teacher_department = f"{program} Department"
 
         # Generate payment data
         payment_data = self.generate_payment_data(config)
@@ -665,7 +664,6 @@ class ProfessionalReceiptGenerator:
             "last_day": last_day,
             "exam_week": exam_week,
             "teacher_name": teacher_name,
-            "teacher_department": teacher_department,
             "country_config": config,
             "payment_data": payment_data
         }
@@ -1137,9 +1135,8 @@ class ProfessionalReceiptGenerator:
 
             teacher_table = Table([
                 ["Teacher Name:", student_data['teacher_name']],
-                ["Department:", student_data['teacher_department']],
-                ["Assignment Date:", self.format_date(student_data['date_issued'], config)],
-                ["Institution:", college['name']]
+                ["Institution:", college['name']],
+                ["Document Date:", self.format_date(student_data['date_issued'], config)]
             ], colWidths=[2*inch, 4*inch])
 
             teacher_table.setStyle(TableStyle([
@@ -1156,28 +1153,6 @@ class ProfessionalReceiptGenerator:
             elements.append(teacher_table)
             elements.append(Spacer(1, 14))
 
-            student_info_title = Paragraph("Student Assignment", teacher_info_title)
-            elements.append(student_info_title)
-
-            student_table = Table([
-                ["Student Name:", student_data['full_name']],
-                ["Student ID:", student_data['student_id']],
-                ["Program:", student_data['program']],
-                ["Term:", student_data['academic_term']]
-            ], colWidths=[2*inch, 4*inch])
-
-            student_table.setStyle(TableStyle([
-                ('FONT', (0, 0), (-1, -1), 'Helvetica', 11),
-                ('BACKGROUND', (0, 0), (0, -1), self.colors['row_even']),
-                ('BACKGROUND', (1, 0), (1, -1), colors.white),
-                ('TEXTCOLOR', (0, 0), (-1, -1), self.colors['text_dark']),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('BOX', (0, 0), (-1, -1), 1, self.colors['border']),
-                ('PADDING', (0, 0), (-1, -1), 8),
-            ]))
-
-            elements.append(student_table)
             elements.append(Spacer(1, 18))
 
             body_style = ParagraphStyle(
@@ -1190,15 +1165,13 @@ class ProfessionalReceiptGenerator:
             )
 
             body_text = (
-                f"This letter confirms that {student_data['teacher_name']} is the assigned educator for "
-                f"{student_data['full_name']} ({student_data['student_id']}) in the {student_data['program']} program. "
-                "The instructor will oversee course progression, attendance, and academic performance for the current term."
+                f"This letter confirms the affiliation of {student_data['teacher_name']} with {college['name']}. "
+                "The educator information below is provided for verification and credential purposes."
             )
             elements.append(Paragraph(body_text, body_style))
 
             support_text = (
-                "Please direct any academic inquiries, verification requests, or progress updates to the educator listed above. "
-                "This letter serves as an official confirmation for institutional and verification purposes."
+                "This document is issued solely to validate the educator's identity and institutional association."
             )
             elements.append(Paragraph(support_text, body_style))
 
@@ -1213,7 +1186,6 @@ class ProfessionalReceiptGenerator:
 
             elements.append(Paragraph(f"Signed on {self.format_date(student_data['date_issued'], config)}", signature_style))
             elements.append(Paragraph(student_data['teacher_name'], signature_style))
-            elements.append(Paragraph(student_data['teacher_department'], signature_style))
 
             verification_style = ParagraphStyle(
                 'TeacherVerification',
