@@ -8,6 +8,8 @@ PROFESSIONAL TUITION RECEIPT GENERATOR WITH INSTANT APPROVAL - PERFECT FOR SHEER
 ✅ STUDENT INFO: Name, ID, Program, Semester, Payment Proof
 ✅ HARDCODED DATES: Current/upcoming term dates
 ✅ PDF OUTPUT: Professional formatting
+✅ OFFICIAL LETTER: Enrollment letter with verification messaging
+✅ PAY STUB: Recent pay stub proof generated within the last 90 days
 ✅ ALL 24 COUNTRIES: Complete global support
 ✅ VERIFICATION READY: Perfect for SheerID verification
 """
@@ -451,9 +453,11 @@ class ProfessionalReceiptGenerator:
             
             print("🗑️  All previous data cleared!")
             print("✅ PERFECT FORMAT: Professional receipt layout")
-            print("✅ INSTANT APPROVAL: Super-fast verification system") 
+            print("✅ INSTANT APPROVAL: Super-fast verification system")
             print("✅ INSTITUTION: Full school name from JSON only")
             print("✅ STUDENT INFO: Name, ID, Program, Semester")
+            print("✅ OFFICIAL LETTER: Enrollment verification ready")
+            print("✅ PAY STUB: Proof within last 90 days")
             print("✅ HARDCODED DATES: Current/upcoming term dates")
             print("✅ ALL 24 COUNTRIES: Complete global support")
             print("="*70)
@@ -584,6 +588,32 @@ class ProfessionalReceiptGenerator:
             "payment_date": datetime.now() - timedelta(days=random.randint(1, 30))
         }
 
+    def generate_pay_stub_data(self, country_config):
+        """Generate recent pay stub details from within the last 90 days."""
+        fake = self.get_faker()
+        pay_date = datetime.now() - timedelta(days=random.randint(1, 90))
+        pay_period_start = pay_date - timedelta(days=14)
+
+        hourly_rate = random.uniform(18, 45)
+        hours_worked = random.randint(70, 90)
+        gross_pay = hourly_rate * hours_worked
+        deductions = gross_pay * random.uniform(0.12, 0.22)
+        net_pay = gross_pay - deductions
+
+        return {
+            "employer": fake.company(),
+            "position": fake.job(),
+            "pay_date": pay_date,
+            "pay_period_start": pay_period_start,
+            "pay_period_end": pay_date,
+            "hourly_rate": hourly_rate,
+            "hours_worked": hours_worked,
+            "gross_pay": gross_pay,
+            "deductions": deductions,
+            "net_pay": net_pay,
+            "currency": country_config['currency']
+        }
+
     def generate_student_data(self, college):
         """Generate student data with CURRENT/UPCOMING term dates."""
         fake = self.get_faker()
@@ -643,7 +673,8 @@ class ProfessionalReceiptGenerator:
         
         # Generate payment data
         payment_data = self.generate_payment_data(config)
-        
+        pay_stub = self.generate_pay_stub_data(config)
+
         return {
             "full_name": full_name,
             "student_id": student_id,
@@ -655,7 +686,8 @@ class ProfessionalReceiptGenerator:
             "last_day": last_day,
             "exam_week": exam_week,
             "country_config": config,
-            "payment_data": payment_data
+            "payment_data": payment_data,
+            "pay_stub": pay_stub
         }
 
     def format_currency(self, amount, country_config):
@@ -1069,6 +1101,212 @@ class ProfessionalReceiptGenerator:
             logger.error(f"Failed to create schedule PDF {filename}: {e}")
             return None
 
+    def create_official_letter_pdf(self, student_data):
+        """Create an official enrollment letter for verification."""
+        college = student_data['college']
+        student_id = student_data['student_id']
+        college_id = college['id']
+        config = student_data['country_config']
+        pay_stub = student_data['pay_stub']
+
+        filename = f"LETTER_{student_id}_{college_id}.pdf"
+        filepath = os.path.join(self.receipts_dir, filename)
+
+        try:
+            doc = SimpleDocTemplate(
+                filepath,
+                pagesize=letter,
+                rightMargin=40,
+                leftMargin=40,
+                topMargin=50,
+                bottomMargin=30
+            )
+
+            elements = []
+            styles = getSampleStyleSheet()
+
+            header_style = ParagraphStyle(
+                'LetterHeader',
+                parent=styles['Heading1'],
+                fontSize=18,
+                textColor=self.colors['primary'],
+                alignment=1,
+                spaceAfter=10
+            )
+            elements.append(Paragraph("OFFICIAL ENROLLMENT LETTER", header_style))
+
+            subtitle_style = ParagraphStyle(
+                'LetterSubtitle',
+                parent=styles['Normal'],
+                fontSize=11,
+                textColor=self.colors['text_light'],
+                alignment=1,
+                spaceAfter=15
+            )
+            subtitle = f"Issued by {college['name']} on {self.format_date(student_data['date_issued'], config)}"
+            elements.append(Paragraph(subtitle, subtitle_style))
+
+            info_style = ParagraphStyle(
+                'LetterInfo',
+                parent=styles['Normal'],
+                fontSize=11,
+                textColor=self.colors['text_dark'],
+                leading=15,
+                spaceAfter=12
+            )
+
+            intro = (
+                f"This letter certifies that <b>{student_data['full_name']}</b> (Student ID: {student_id}) "
+                f"is currently enrolled as a full-time student in the <b>{student_data['program']}</b> program for "
+                f"the <b>{student_data['academic_term']}</b> term."
+            )
+            elements.append(Paragraph(intro, info_style))
+
+            verification_details = (
+                "The student maintains active status with verified tuition payment on file. "
+                "Attached documentation includes the official tuition receipt, class schedule, "
+                "and a pay stub dated within the last 90 days to support income verification requirements."
+            )
+            elements.append(Paragraph(verification_details, info_style))
+
+            pay_stub_summary = (
+                f"Latest pay stub: <b>{self.format_date(pay_stub['pay_date'], config)}</b> from "
+                f"<b>{pay_stub['employer']}</b> ({pay_stub['position']}). "
+                "This document is acceptable for verification purposes within the 90-day window."
+            )
+            elements.append(Paragraph(pay_stub_summary, info_style))
+
+            schedule_dates = (
+                f"Classes run from {self.format_date(student_data['first_day'], config)} "
+                f"through {self.format_date(student_data['last_day'], config)}, "
+                f"with final assessments beginning {self.format_date(student_data['exam_week'], config)}."
+            )
+            elements.append(Paragraph(schedule_dates, info_style))
+
+            signature_style = ParagraphStyle(
+                'Signature',
+                parent=styles['Normal'],
+                fontSize=10,
+                textColor=self.colors['text_light'],
+                alignment=1,
+                spaceBefore=25
+            )
+            elements.append(Paragraph("Registrar's Office • Official Verification Letter", signature_style))
+            elements.append(Paragraph("Valid for SheerID and enrollment confirmation", signature_style))
+
+            doc.build(elements)
+            return filename
+        except Exception as e:
+            logger.error(f"Failed to create official letter PDF {filename}: {e}")
+            return None
+
+    def create_pay_stub_pdf(self, student_data):
+        """Create a recent pay stub PDF (within last 90 days)."""
+        college = student_data['college']
+        student_id = student_data['student_id']
+        college_id = college['id']
+        config = student_data['country_config']
+        pay_stub = student_data['pay_stub']
+
+        filename = f"PAYSTUB_{student_id}_{college_id}.pdf"
+        filepath = os.path.join(self.receipts_dir, filename)
+
+        try:
+            doc = SimpleDocTemplate(
+                filepath,
+                pagesize=letter,
+                rightMargin=40,
+                leftMargin=40,
+                topMargin=40,
+                bottomMargin=30
+            )
+
+            elements = []
+            styles = getSampleStyleSheet()
+
+            header_style = ParagraphStyle(
+                'PayStubHeader',
+                parent=styles['Heading1'],
+                fontSize=18,
+                textColor=self.colors['primary'],
+                alignment=1,
+                spaceAfter=12
+            )
+            elements.append(Paragraph("PAY STUB - VERIFICATION COPY", header_style))
+
+            employer_style = ParagraphStyle(
+                'Employer',
+                parent=styles['Heading2'],
+                fontSize=14,
+                textColor=self.colors['secondary'],
+                alignment=1,
+                spaceAfter=10
+            )
+            elements.append(Paragraph(pay_stub['employer'], employer_style))
+
+            meta_data = [
+                ["Employee Name", student_data['full_name']],
+                ["Position", pay_stub['position']],
+                ["Student ID", student_id],
+                ["Institution", college['name']],
+                ["Pay Date", self.format_date(pay_stub['pay_date'], config)],
+                ["Pay Period", f"{self.format_date(pay_stub['pay_period_start'], config)} to {self.format_date(pay_stub['pay_period_end'], config)}"]
+            ]
+
+            meta_table = Table(meta_data, colWidths=[1.8*inch, 4.2*inch])
+            meta_table.setStyle(TableStyle([
+                ('FONT', (0, 0), (-1, -1), 'Helvetica', 11),
+                ('BACKGROUND', (0, 0), (0, -1), self.colors['row_odd']),
+                ('BACKGROUND', (1, 0), (1, -1), colors.white),
+                ('TEXTCOLOR', (0, 0), (-1, -1), self.colors['text_dark']),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('BOX', (0, 0), (-1, -1), 1, self.colors['border']),
+                ('PADDING', (0, 0), (-1, -1), 8),
+            ]))
+            elements.append(meta_table)
+            elements.append(Spacer(1, 12))
+
+            pay_data = [
+                ["Hours Worked", f"{pay_stub['hours_worked']} hrs"],
+                ["Hourly Rate", self.format_currency(pay_stub['hourly_rate'], config)],
+                ["Gross Pay", self.format_currency(pay_stub['gross_pay'], config)],
+                ["Deductions", self.format_currency(pay_stub['deductions'], config)],
+                ["Net Pay", self.format_currency(pay_stub['net_pay'], config)]
+            ]
+
+            pay_table = Table(pay_data, colWidths=[2*inch, 4*inch])
+            pay_table.setStyle(TableStyle([
+                ('FONT', (0, 0), (-1, -1), 'Helvetica', 11),
+                ('TEXTCOLOR', (0, 0), (-1, -1), self.colors['text_dark']),
+                ('BACKGROUND', (0, -1), (-1, -1), self.colors['success']),
+                ('TEXTCOLOR', (0, -1), (-1, -1), colors.white),
+                ('BOX', (0, 0), (-1, -1), 1, self.colors['border']),
+                ('LINEBELOW', (0, 0), (-1, -2), 0.5, self.colors['border']),
+                ('PADDING', (0, 0), (-1, -1), 8),
+            ]))
+            elements.append(pay_table)
+
+            compliance_style = ParagraphStyle(
+                'Compliance',
+                parent=styles['Normal'],
+                fontSize=10,
+                textColor=self.colors['text_light'],
+                alignment=1,
+                spaceBefore=16
+            )
+            compliance_text = (
+                "This pay stub is generated for verification purposes and is dated within the "
+                "last 90 days to meet documentation requirements."
+            )
+            elements.append(Paragraph(compliance_text, compliance_style))
+
+            doc.build(elements)
+            return filename
+        except Exception as e:
+            logger.error(f"Failed to create pay stub PDF {filename}: {e}")
+            return None
+
     def generate_courses(self, program):
         """Generate realistic courses based on program."""
         base_courses = {
@@ -1123,11 +1361,13 @@ class ProfessionalReceiptGenerator:
             
             student_data = self.generate_student_data(college)
                 
-            # Generate both tuition receipt and class schedule
+            # Generate tuition receipt, class schedule, official letter, and pay stub
             receipt_filename, _ = self.create_tuition_receipt_pdf(student_data)
             schedule_filename = self.create_class_schedule_pdf(student_data)
-            
-            if receipt_filename and schedule_filename:
+            letter_filename = self.create_official_letter_pdf(student_data)
+            pay_stub_filename = self.create_pay_stub_pdf(student_data)
+
+            if all([receipt_filename, schedule_filename, letter_filename, pay_stub_filename]):
                 self.save_student(student_data)
                 self.stats["receipts_generated"] += 1
                 return True
@@ -1143,6 +1383,8 @@ class ProfessionalReceiptGenerator:
         print("✅ INSTITUTION: Full school names from JSON only")
         print("✅ STUDENT INFO: Name, ID, Program, Semester, Payment Proof")
         print("✅ CURRENT DATES: Current/upcoming semester dates")
+        print("✅ OFFICIAL LETTER: Enrollment verification letter")
+        print("✅ PAY STUB: Income proof within last 90 days")
         print("✅ TUITION RECEIPT: Professional receipt with payment details")
         print("✅ CLASS SCHEDULE: Complete schedule with enrollment proof")
         print("✅ SHEERID READY: Perfect for instant verification")
@@ -1199,6 +1441,8 @@ class ProfessionalReceiptGenerator:
             print(f"Colleges from JSON: {len(self.all_colleges)}")
             print(f"Mode: Professional receipts + schedules")
             print(f"Institution: JSON names only")
+            print(f"Official Letter: Enrollment verification included")
+            print(f"Pay Stub: Generated within last 90 days")
             print(f"Dates: Current/upcoming semester")
             print(f"Verification: SheerID ready")
             print(f"{'='*60}")
@@ -1226,9 +1470,11 @@ def main():
     print("PROFESSIONAL TUITION RECEIPT GENERATOR - SHEERID VERIFICATION READY")
     print("="*70)
     print("✅ TUITION RECEIPT: Professional receipt with payment proof")
-    print("✅ CLASS SCHEDULE: Complete schedule with enrollment proof") 
+    print("✅ CLASS SCHEDULE: Complete schedule with enrollment proof")
     print("✅ INSTITUTION: Full school names from JSON only")
     print("✅ STUDENT INFO: Name, ID, Program, Semester, Payment")
+    print("✅ OFFICIAL LETTER: Registrar-issued verification letter")
+    print("✅ PAY STUB: Recent proof within the last 90 days")
     print("✅ CURRENT DATES: Current/upcoming semester dates")
     print("✅ INSTANT APPROVAL: Super-fast verification system")
     print("✅ PERFECT FORMAT: Professional PDF layout")
