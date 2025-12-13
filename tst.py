@@ -398,6 +398,9 @@ class ProfessionalReceiptGenerator:
         self.students_file = "students.txt"
         self.selected_country = None
         self.all_colleges = []
+        self.fixed_teacher_name = None
+        self.fixed_teacher_id = None
+        self.fixed_college = None
         
         self.faker_instances = []
         self.faker_lock = threading.Lock()
@@ -548,7 +551,23 @@ class ProfessionalReceiptGenerator:
             self.faker_instances = [Faker('en_US') for _ in range(20)]
         except:
             self.faker_instances = [Faker() for _ in range(20)]
-            
+
+        if not self.fixed_teacher_name or not self.fixed_teacher_id:
+            faker = self.get_faker()
+            self.fixed_teacher_name = clean_name(f"{faker.first_name()} {faker.last_name()}")
+            self.fixed_teacher_id = f"{faker.random_number(digits=8, fix_len=True)}"
+
+        if not self.fixed_college:
+            if self.all_colleges:
+                self.fixed_college = random.choice(self.all_colleges)
+            else:
+                fallback_config = COUNTRY_CONFIG.get(self.selected_country, COUNTRY_CONFIG['US'])
+                self.fixed_college = {
+                    'name': f"University of {fallback_config['name']}",
+                    'id': 'UNI001',
+                    'type': 'UNIVERSITY'
+                }
+
         print("✅ Generator ready!")
         
         return True
@@ -562,6 +581,8 @@ class ProfessionalReceiptGenerator:
 
     def select_random_college(self):
         """Select a random college from JSON data only."""
+        if self.fixed_college:
+            return self.fixed_college
         if not self.all_colleges:
             config = COUNTRY_CONFIG.get(self.selected_country, COUNTRY_CONFIG['US'])
             return {'name': f'University of {config["name"]}', 'id': 'UNI001', 'type': 'UNIVERSITY'}
@@ -619,10 +640,16 @@ class ProfessionalReceiptGenerator:
         fake = self.get_faker()
         config = COUNTRY_CONFIG[self.selected_country]
         
-        first_name = fake.first_name()
-        last_name = fake.last_name()
-        full_name = clean_name(f"{first_name} {last_name}")
-        teacher_id = f"{fake.random_number(digits=8, fix_len=True)}"
+        if not self.fixed_teacher_name or not self.fixed_teacher_id:
+            first_name = fake.first_name()
+            last_name = fake.last_name()
+            self.fixed_teacher_name = clean_name(f"{first_name} {last_name}")
+            self.fixed_teacher_id = f"{fake.random_number(digits=8, fix_len=True)}"
+
+        full_name = self.fixed_teacher_name
+        teacher_id = self.fixed_teacher_id
+
+        college = self.fixed_college or college
         
         # CURRENT/UPCOMING TERM DATES for SheerID verification
         current_date = datetime.now()
