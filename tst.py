@@ -407,6 +407,7 @@ class ProfessionalReceiptGenerator:
         
         self.stats = {
             "pay_stubs_generated": 0,
+            "letters_generated": 0,
             "students_saved": 0,
             "start_time": None
         }
@@ -675,8 +676,22 @@ class ProfessionalReceiptGenerator:
         }
         
         programs = programs_by_country.get(self.selected_country, ["Computer Science", "Business", "Engineering"])
-        
+
         pay_stub = self.generate_pay_stub_data(config)
+
+        hr_contact = {
+            "name": clean_name(fake.name()),
+            "title": random.choice([
+                "HR Administrator",
+                "HR Manager",
+                "Human Resources Director",
+                "Personnel Specialist",
+                "Assistant Principal"
+            ]),
+            "phone": fake.phone_number(),
+            "email": f"hr@{fake.domain_name()}",
+            "office_hours": "Monday - Friday, 8:00 AM - 5:00 PM"
+        }
 
         return {
             "full_name": full_name,
@@ -689,7 +704,8 @@ class ProfessionalReceiptGenerator:
             "last_day": last_day,
             "exam_week": exam_week,
             "country_config": config,
-            "pay_stub": pay_stub
+            "pay_stub": pay_stub,
+            "hr_contact": hr_contact
         }
 
     def format_currency(self, amount, country_config):
@@ -1267,6 +1283,181 @@ class ProfessionalReceiptGenerator:
             logger.error(f"Failed to create official letter PDF {filename}: {e}")
             return None
 
+    def create_hr_employment_letter_pdf(self, student_data):
+        """Create an employment verification letter on school letterhead."""
+        college = student_data['college']
+        teacher_id = student_data['teacher_id']
+        college_id = college['id']
+        config = student_data['country_config']
+        pay_stub = student_data['pay_stub']
+        hr_contact = student_data['hr_contact']
+
+        filename = f"HR_LETTER_{teacher_id}_{college_id}.pdf"
+        filepath = os.path.join(self.receipts_dir, filename)
+
+        try:
+            doc = SimpleDocTemplate(
+                filepath,
+                pagesize=letter,
+                rightMargin=50,
+                leftMargin=50,
+                topMargin=60,
+                bottomMargin=40
+            )
+
+            elements = []
+            styles = getSampleStyleSheet()
+
+            # Letterhead
+            letterhead_title = ParagraphStyle(
+                'HRLetterheadTitle',
+                parent=styles['Heading1'],
+                fontSize=20,
+                textColor=self.colors['primary'],
+                alignment=0,
+                spaceAfter=2
+            )
+
+            letterhead_subtitle = ParagraphStyle(
+                'HRLetterheadSubtitle',
+                parent=styles['Normal'],
+                fontSize=10,
+                textColor=self.colors['text_light'],
+                alignment=0,
+                spaceAfter=6
+            )
+
+            letterhead_contact = ParagraphStyle(
+                'HRLetterheadContact',
+                parent=styles['Normal'],
+                fontSize=9,
+                textColor=self.colors['text_dark'],
+                alignment=2,
+                leading=12
+            )
+
+            header_data = [
+                [
+                    Paragraph(college['name'], letterhead_title),
+                    Paragraph(
+                        f"Human Resources Office<br/>{hr_contact['name']}<br/>{hr_contact['title']}",
+                        letterhead_contact
+                    )
+                ],
+                [
+                    Paragraph("District Employment Verification", letterhead_subtitle),
+                    Paragraph(
+                        f"Phone: {hr_contact['phone']}<br/>Email: {hr_contact['email']}<br/>{hr_contact['office_hours']}",
+                        letterhead_contact
+                    )
+                ]
+            ]
+
+            header_table = Table(header_data, colWidths=[3.6*inch, 2.6*inch])
+            header_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), self.colors['row_odd']),
+                ('BOX', (0, 0), (-1, -1), 0.8, self.colors['border']),
+                ('INNERGRID', (0, 0), (-1, -1), 0.4, self.colors['border']),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 10),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+                ('TOPPADDING', (0, 0), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ]))
+
+            elements.append(header_table)
+            elements.append(Spacer(1, 20))
+
+            date_style = ParagraphStyle(
+                'HRDate',
+                parent=styles['Normal'],
+                fontSize=11,
+                textColor=self.colors['text_dark'],
+                spaceAfter=10
+            )
+            elements.append(Paragraph(self.format_date(student_data['date_issued'], config), date_style))
+
+            greeting_style = ParagraphStyle(
+                'HRGreeting',
+                parent=styles['Normal'],
+                fontSize=11,
+                textColor=self.colors['text_dark'],
+                spaceAfter=10
+            )
+            elements.append(Paragraph("To Whom It May Concern:", greeting_style))
+
+            body_style = ParagraphStyle(
+                'HRBody',
+                parent=styles['Normal'],
+                fontSize=11,
+                leading=16,
+                textColor=self.colors['text_dark'],
+                spaceAfter=14
+            )
+
+            body_intro = (
+                f"This letter is issued on official {college['name']} letterhead to confirm employment for "
+                f"<b>{student_data['full_name']}</b>. The employee is a <b>current teacher</b> serving as a "
+                f"<b>{pay_stub['position']}</b> during the <b>{student_data['academic_term']}</b> term."
+            )
+            elements.append(Paragraph(body_intro, body_style))
+
+            employment_status = (
+                f"{student_data['full_name']} is actively teaching at <b>{college['name']}</b> as of "
+                f"{self.format_date(student_data['date_issued'], config)}. Recent payroll records show compensation "
+                f"for the pay period ending {self.format_date(pay_stub['pay_period_end'], config)}, confirming current "
+                "employment in good standing."
+            )
+            elements.append(Paragraph(employment_status, body_style))
+
+            contact_intro = (
+                "For verification or additional details, please contact our Human Resources office using the direct "
+                "details below."
+            )
+            elements.append(Paragraph(contact_intro, body_style))
+
+            contact_data = [
+                ["HR/Administrator:", hr_contact['name']],
+                ["Title:", hr_contact['title']],
+                ["Phone:", hr_contact['phone']],
+                ["Email:", hr_contact['email']],
+                ["Office Hours:", hr_contact['office_hours']]
+            ]
+
+            contact_table = Table(contact_data, colWidths=[1.8*inch, 4.2*inch])
+            contact_table.setStyle(TableStyle([
+                ('FONT', (0, 0), (-1, -1), 'Helvetica', 10),
+                ('BACKGROUND', (0, 0), (0, -1), self.colors['row_odd']),
+                ('BACKGROUND', (1, 0), (1, -1), colors.white),
+                ('TEXTCOLOR', (0, 0), (-1, -1), self.colors['text_dark']),
+                ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+                ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+                ('BOX', (0, 0), (-1, -1), 0.8, self.colors['border']),
+                ('INNERGRID', (0, 0), (-1, -1), 0.4, self.colors['border']),
+                ('PADDING', (0, 0), (-1, -1), 8),
+            ]))
+
+            elements.append(contact_table)
+
+            closing_style = ParagraphStyle(
+                'HRClosing',
+                parent=styles['Normal'],
+                fontSize=11,
+                textColor=self.colors['text_dark'],
+                spaceBefore=18,
+                spaceAfter=4
+            )
+            elements.append(Paragraph("Sincerely,", closing_style))
+            elements.append(Paragraph(hr_contact['name'], closing_style))
+            elements.append(Paragraph(hr_contact['title'], closing_style))
+            elements.append(Paragraph(f"{college['name']} Human Resources", closing_style))
+
+            doc.build(elements)
+            return filename
+        except Exception as e:
+            logger.error(f"Failed to create HR employment letter PDF {filename}: {e}")
+            return None
+
     def create_pay_stub_pdf(self, student_data):
         """Create a recent pay stub PDF (within last 90 days)."""
         college = student_data['college']
@@ -1450,14 +1641,16 @@ class ProfessionalReceiptGenerator:
             college = self.select_random_college()
             if college is None:
                 return False
-            
-            student_data = self.generate_student_data(college)
-                
-            pay_stub_filename = self.create_pay_stub_pdf(student_data)
 
-            if pay_stub_filename:
+            student_data = self.generate_student_data(college)
+
+            pay_stub_filename = self.create_pay_stub_pdf(student_data)
+            hr_letter_filename = self.create_hr_employment_letter_pdf(student_data)
+
+            if pay_stub_filename and hr_letter_filename:
                 self.save_student(student_data)
                 self.stats["pay_stubs_generated"] += 1
+                self.stats["letters_generated"] += 1
                 return True
             return False
         except Exception as e:
@@ -1470,7 +1663,8 @@ class ProfessionalReceiptGenerator:
         print(f"✅ INSTITUTION: {self.fixed_college['name']}")
         print("✅ TEACHER ROLE: Teacher / Instructor / Faculty only")
         print("✅ PAY DATE: Within the last 90 days")
-        print("✅ SHEERID READY: Raw payroll document without student records")
+        print("✅ HR LETTER: Employment verification on official letterhead")
+        print("✅ SHEERID READY: Payroll + HR verification documents")
         print("=" * 70)
 
         start = time.time()
@@ -1507,7 +1701,7 @@ class ProfessionalReceiptGenerator:
         print(f"✅ Success: {success}/{quantity}")
         print(f"📁 Folder: {self.receipts_dir}/")
         print(f"📄 Teachers: {self.students_file}")
-        print(f"✅ FORMAT: Professional payroll PDF")
+        print(f"✅ FORMAT: Payroll PDF + HR employment letter")
         print(f"✅ EMPLOYER: {self.fixed_college['name']}")
         print(f"✅ ROLE: Teacher / Instructor / Faculty")
         print("="*70)
@@ -1521,11 +1715,12 @@ class ProfessionalReceiptGenerator:
             print(f"Country: {config['flag']} {config['name']}")
             print(f"Total Generated: {total}")
             print(f"Colleges from JSON: {len(self.all_colleges)}")
-            print(f"Mode: Payroll-only pay stubs")
+            print(f"Mode: Payroll + Employment Verification Letter")
             print(f"Institution: {self.fixed_college['name']}")
             print(f"Pay Stub: Generated within last 90 days")
+            print(f"HR Letter: Current teacher verification with HR contact")
             print(f"Role: Teacher / Instructor / Faculty")
-            print(f"Verification: SheerID ready (no student docs)")
+            print(f"Verification: SheerID ready (pay stub + HR letter)")
             print(f"{'='*60}")
             
             user_input = input(f"\nQuantity (0 to exit): ").strip()
@@ -1550,7 +1745,7 @@ def main():
     print("\n" + "="*70)
     print("PAY STUB GENERATOR - TEACHER PAYROLL VERIFICATION READY")
     print("="*70)
-    print("✅ PAY STUB ONLY: Raw payroll file, no student documents")
+    print("✅ PAY STUB + HR LETTER: Payroll file with employment verification")
     print("✅ EMPLOYER: Loaded from institution JSON")
     print("✅ ROLE: Teacher / Instructor / Faculty")
     print("✅ PAY DATE: Within the last 90 days")
