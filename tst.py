@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """
-PROFESSIONAL TUITION RECEIPT GENERATOR WITH INSTANT APPROVAL - PERFECT FOR SHEERID
-✅ TUITION RECEIPT: Professional receipt with all required fields
-✅ CLASS SCHEDULE: Complete schedule with enrollment proof
+PROFESSIONAL TEACHER LETTER GENERATOR WITH INSTANT APPROVAL - PERFECT FOR SHEERID
+✅ TEACHER LETTER: Official letter with educator name and header
 ✅ INSTANT APPROVAL: Super-fast verification system
-✅ INSTITUTION NAME: Full school name from JSON only  
-✅ STUDENT INFO: Name, ID, Program, Semester, Payment Proof
+✅ INSTITUTION NAME: Full school name from JSON only
 ✅ HARDCODED DATES: Current/upcoming term dates
 ✅ PDF OUTPUT: Professional formatting
 ✅ ALL 24 COUNTRIES: Complete global support
@@ -393,7 +391,7 @@ COUNTRY_CONFIG = {
 class ProfessionalReceiptGenerator:
     def __init__(self):
         self.receipts_dir = "receipts"
-        self.students_file = "students.txt"
+        self.teachers_file = "teachers.txt"
         self.selected_country = None
         self.all_colleges = []
         
@@ -404,10 +402,10 @@ class ProfessionalReceiptGenerator:
         # Performance settings
         self.max_workers = 10
         self.memory_cleanup_interval = 100
-        
+
         self.stats = {
-            "receipts_generated": 0,
-            "students_saved": 0,
+            "teacher_letters_generated": 0,
+            "teachers_saved": 0,
             "start_time": None
         }
         
@@ -443,18 +441,18 @@ class ProfessionalReceiptGenerator:
                             os.remove(os.path.join(self.receipts_dir, f))
                         except Exception:
                             pass
-            if os.path.exists(self.students_file):
+            if os.path.exists(self.teachers_file):
                 try:
-                    os.remove(self.students_file)
+                    os.remove(self.teachers_file)
                 except Exception:
                     pass
-            
+
             print("🗑️  All previous data cleared!")
-            print("✅ PERFECT FORMAT: Professional receipt layout")
-            print("✅ INSTANT APPROVAL: Super-fast verification system") 
+            print("✅ PERFECT FORMAT: Professional letter layout")
+            print("✅ INSTANT APPROVAL: Super-fast verification system")
             print("✅ INSTITUTION: Full school name from JSON only")
-            print("✅ STUDENT INFO: Name, ID, Program, Semester")
-            print("✅ HARDCODED DATES: Current/upcoming term dates")
+            print("✅ EDUCATOR INFO: Name-only teacher confirmation")
+            print("✅ HARDCODED DATES: Current/upcoming term window")
             print("✅ ALL 24 COUNTRIES: Complete global support")
             print("="*70)
         except Exception as e:
@@ -584,15 +582,15 @@ class ProfessionalReceiptGenerator:
             "payment_date": datetime.now() - timedelta(days=random.randint(1, 30))
         }
 
-    def generate_student_data(self, college):
-        """Generate student data with CURRENT/UPCOMING term dates."""
+    def generate_teacher_data(self, college):
+        """Generate teacher data with CURRENT/UPCOMING term dates."""
         fake = self.get_faker()
         config = COUNTRY_CONFIG[self.selected_country]
         
         first_name = fake.first_name()
         last_name = fake.last_name()
         full_name = clean_name(f"{first_name} {last_name}")
-        student_id = f"{fake.random_number(digits=8, fix_len=True)}"
+        teacher_id = f"{fake.random_number(digits=8, fix_len=True)}"
         
         # CURRENT/UPCOMING TERM DATES for SheerID verification
         current_date = datetime.now()
@@ -640,22 +638,31 @@ class ProfessionalReceiptGenerator:
         }
         
         programs = programs_by_country.get(self.selected_country, ["Computer Science", "Business", "Engineering"])
-        
+
+        program = random.choice(programs)
+
+        teacher_titles = [
+            "Professor", "Associate Professor", "Assistant Professor",
+            "Senior Lecturer", "Lecturer", "Adjunct Instructor"
+        ]
+        teacher_name = clean_name(f"{random.choice(teacher_titles)} {fake.first_name()} {fake.last_name()}")
+
         # Generate payment data
         payment_data = self.generate_payment_data(config)
-        
+
         return {
-            "full_name": full_name,
-            "student_id": student_id,
+            "teacher_name": teacher_name,
+            "teacher_id": teacher_id,
             "college": college,
-            "program": random.choice(programs),
             "academic_term": academic_term,
             "date_issued": date_issued,
             "first_day": first_day,
             "last_day": last_day,
             "exam_week": exam_week,
             "country_config": config,
-            "payment_data": payment_data
+            "payment_data": payment_data,
+            "full_name": full_name,
+            "program": program,
         }
 
     def format_currency(self, amount, country_config):
@@ -1069,6 +1076,108 @@ class ProfessionalReceiptGenerator:
             logger.error(f"Failed to create schedule PDF {filename}: {e}")
             return None
 
+    def create_teacher_letter_pdf(self, teacher_data):
+        """Create an official teacher letter with visible header and educator name."""
+        college = teacher_data['college']
+        teacher_id = teacher_data['teacher_id']
+        college_id = college['id']
+
+        filename = f"TEACHER_LETTER_{teacher_id}_{college_id}.pdf"
+        filepath = os.path.join(self.receipts_dir, filename)
+
+        try:
+            doc = SimpleDocTemplate(
+                filepath,
+                pagesize=letter,
+                rightMargin=50,
+                leftMargin=50,
+                topMargin=50,
+                bottomMargin=30
+            )
+
+            elements = []
+            styles = getSampleStyleSheet()
+
+            header_style = ParagraphStyle(
+                'TeacherHeader',
+                parent=styles['Heading1'],
+                fontSize=20,
+                textColor=self.colors['primary'],
+                alignment=1,
+                spaceAfter=8
+            )
+
+            subheader_style = ParagraphStyle(
+                'TeacherSubheader',
+                parent=styles['Heading2'],
+                fontSize=14,
+                textColor=self.colors['secondary'],
+                alignment=1,
+                spaceAfter=16
+            )
+
+            name_style = ParagraphStyle(
+                'TeacherName',
+                parent=styles['Heading2'],
+                fontSize=16,
+                textColor=self.colors['text_dark'],
+                alignment=1,
+                spaceAfter=12
+            )
+
+            elements.append(Paragraph("OFFICIAL TEACHER LETTER", header_style))
+            elements.append(Paragraph("Educator Identity Confirmation", subheader_style))
+            elements.append(Paragraph(teacher_data['teacher_name'], name_style))
+
+            elements.append(Spacer(1, 18))
+
+            body_style = ParagraphStyle(
+                'TeacherBody',
+                parent=styles['BodyText'],
+                fontSize=11,
+                leading=15,
+                textColor=self.colors['text_dark'],
+                spaceAfter=10
+            )
+
+            body_text = (
+                f"This letter verifies the identity of {teacher_data['teacher_name']} as a designated educator. "
+                "The name above is presented for credential validation only."
+            )
+            elements.append(Paragraph(body_text, body_style))
+
+            signature_style = ParagraphStyle(
+                'TeacherSignature',
+                parent=styles['Normal'],
+                fontSize=10,
+                textColor=self.colors['secondary'],
+                alignment=1,
+                spaceBefore=16
+            )
+
+            elements.append(Paragraph(teacher_data['teacher_name'], signature_style))
+
+            verification_style = ParagraphStyle(
+                'TeacherVerification',
+                parent=styles['Normal'],
+                fontSize=9,
+                textColor=self.colors['text_light'],
+                alignment=1,
+                spaceBefore=10
+            )
+
+            verification_text = (
+                "OFFICIAL FACULTY LETTER • Educator identity confirmation."
+            )
+            elements.append(Paragraph(verification_text, verification_style))
+
+            doc.build(elements)
+            return filename
+
+        except Exception as e:
+            logger.error(f"Failed to create teacher letter PDF {filename}: {e}")
+            return None
+
     def generate_courses(self, program):
         """Generate realistic courses based on program."""
         base_courses = {
@@ -1101,15 +1210,15 @@ class ProfessionalReceiptGenerator:
         """Format date according to country preferences."""
         return date_obj.strftime(country_config['date_format'])
 
-    def save_student(self, student_data):
-        """Save student data to file."""
+    def save_teacher(self, teacher_data):
+        """Save teacher data to file."""
         try:
-            with open(self.students_file, 'a', encoding='utf-8', buffering=32768) as f:
-                line = f"{student_data['full_name']}|{student_data['student_id']}|{student_data['college']['id']}|{student_data['college']['name']}|{self.selected_country}|{student_data['academic_term']}|{student_data['date_issued'].strftime('%Y-%m-%d')}|{student_data['first_day'].strftime('%Y-%m-%d')}|{student_data['last_day'].strftime('%Y-%m-%d')}\n"
+            with open(self.teachers_file, 'a', encoding='utf-8', buffering=32768) as f:
+                line = f"{teacher_data['teacher_name']}|{teacher_data['teacher_id']}|{teacher_data['college']['id']}|{teacher_data['college']['name']}|{self.selected_country}|{teacher_data['academic_term']}|{teacher_data['date_issued'].strftime('%Y-%m-%d')}\n"
                 f.write(line)
                 f.flush()
 
-            self.stats["students_saved"] += 1
+            self.stats["teachers_saved"] += 1
             return True
         except Exception as e:
             logger.error(f"⚠️ Save error: {e}")
@@ -1120,31 +1229,27 @@ class ProfessionalReceiptGenerator:
             college = self.select_random_college()
             if college is None:
                 return False
-            
-            student_data = self.generate_student_data(college)
-                
-            # Generate both tuition receipt and class schedule
-            receipt_filename, _ = self.create_tuition_receipt_pdf(student_data)
-            schedule_filename = self.create_class_schedule_pdf(student_data)
-            
-            if receipt_filename and schedule_filename:
-                self.save_student(student_data)
-                self.stats["receipts_generated"] += 1
+
+            teacher_data = self.generate_teacher_data(college)
+            teacher_letter_filename = self.create_teacher_letter_pdf(teacher_data)
+
+            if teacher_letter_filename:
+                self.save_teacher(teacher_data)
+                self.stats["teacher_letters_generated"] += 1
                 return True
             return False
         except Exception as e:
-            logger.error(f"Error processing student {num}: {e}")
+            logger.error(f"Error processing teacher {num}: {e}")
             return False
 
     def generate_bulk(self, quantity):
         config = COUNTRY_CONFIG[self.selected_country]
-        print(f"⚡ Generating {quantity} TUITION RECEIPTS + SCHEDULES for {config['flag']} {config['name']}")
+        print(f"⚡ Generating {quantity} OFFICIAL TEACHER LETTERS for {config['flag']} {config['name']}")
         print(f"✅ {len(self.all_colleges)} colleges loaded from JSON")
         print("✅ INSTITUTION: Full school names from JSON only")
-        print("✅ STUDENT INFO: Name, ID, Program, Semester, Payment Proof")
-        print("✅ CURRENT DATES: Current/upcoming semester dates")
-        print("✅ TUITION RECEIPT: Professional receipt with payment details")
-        print("✅ CLASS SCHEDULE: Complete schedule with enrollment proof")
+        print("✅ EDUCATOR INFO: Name-only teacher confirmation")
+        print("✅ CURRENT DATES: Current/upcoming semester window")
+        print("✅ TEACHER LETTER: Official educator identity header")
         print("✅ SHEERID READY: Perfect for instant verification")
         print("=" * 70)
 
@@ -1169,7 +1274,7 @@ class ProfessionalReceiptGenerator:
                         elapsed = time.time() - start
                         rate = i / elapsed if elapsed > 0 else 0
                         rate_per_min = rate * 60
-                        print(f"Progress: {i}/{quantity} ({(i/quantity*100):.1f}%) | Rate: {rate_per_min:.0f} sets/min")
+                        print(f"Progress: {i}/{quantity} ({(i/quantity*100):.1f}%) | Rate: {rate_per_min:.0f} letters/min")
         
         duration = time.time() - start
         rate_per_min = (success / duration) * 60 if duration > 0 else 0
@@ -1178,11 +1283,11 @@ class ProfessionalReceiptGenerator:
         print(f"✅ COMPLETE - {config['flag']} {config['name']}")
         print("="*70)
         print(f"⏱️  Time: {duration:.1f}s")
-        print(f"⚡ Speed: {rate_per_min:.0f} receipt+schedule sets/minute")
+        print(f"⚡ Speed: {rate_per_min:.0f} letters/minute")
         print(f"✅ Success: {success}/{quantity}")
         print(f"📁 Folder: {self.receipts_dir}/")
-        print(f"📄 Students: {self.students_file}")
-        print(f"✅ FORMAT: Professional PDF receipts + schedules")
+        print(f"📄 Teachers: {self.teachers_file}")
+        print(f"✅ FORMAT: Official teacher letters only")
         print(f"✅ INSTITUTION: Names from JSON files only")
         print(f"✅ DATES: Current/upcoming semester dates")
         print(f"✅ SHEERID: Perfect for instant verification")
@@ -1197,7 +1302,7 @@ class ProfessionalReceiptGenerator:
             print(f"Country: {config['flag']} {config['name']}")
             print(f"Total Generated: {total}")
             print(f"Colleges from JSON: {len(self.all_colleges)}")
-            print(f"Mode: Professional receipts + schedules")
+            print(f"Mode: Official teacher letters only")
             print(f"Institution: JSON names only")
             print(f"Dates: Current/upcoming semester")
             print(f"Verification: SheerID ready")
@@ -1219,16 +1324,15 @@ class ProfessionalReceiptGenerator:
                 continue
             
             self.generate_bulk(quantity)
-            total = self.stats["receipts_generated"]
+            total = self.stats["teacher_letters_generated"]
 
 def main():
     print("\n" + "="*70)
-    print("PROFESSIONAL TUITION RECEIPT GENERATOR - SHEERID VERIFICATION READY")
+    print("PROFESSIONAL TEACHER LETTER GENERATOR - SHEERID VERIFICATION READY")
     print("="*70)
-    print("✅ TUITION RECEIPT: Professional receipt with payment proof")
-    print("✅ CLASS SCHEDULE: Complete schedule with enrollment proof") 
+    print("✅ TEACHER LETTER: Official educator letter with visible header")
     print("✅ INSTITUTION: Full school names from JSON only")
-    print("✅ STUDENT INFO: Name, ID, Program, Semester, Payment")
+    print("✅ EDUCATOR INFO: Name-only verification focus")
     print("✅ CURRENT DATES: Current/upcoming semester dates")
     print("✅ INSTANT APPROVAL: Super-fast verification system")
     print("✅ PERFECT FORMAT: Professional PDF layout")
