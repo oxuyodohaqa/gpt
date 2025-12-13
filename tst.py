@@ -1178,6 +1178,135 @@ class ProfessionalReceiptGenerator:
             logger.error(f"Failed to create teacher letter PDF {filename}: {e}")
             return None
 
+    def create_teacher_letter_pdf(self, student_data):
+        """Create an official teacher letter with visible header and educator name."""
+        college = student_data['college']
+        student_id = student_data['student_id']
+        college_id = college['id']
+        config = student_data['country_config']
+
+        filename = f"TEACHER_LETTER_{student_id}_{college_id}.pdf"
+        filepath = os.path.join(self.receipts_dir, filename)
+
+        try:
+            doc = SimpleDocTemplate(
+                filepath,
+                pagesize=letter,
+                rightMargin=50,
+                leftMargin=50,
+                topMargin=50,
+                bottomMargin=30
+            )
+
+            elements = []
+            styles = getSampleStyleSheet()
+
+            header_style = ParagraphStyle(
+                'TeacherHeader',
+                parent=styles['Heading1'],
+                fontSize=20,
+                textColor=self.colors['primary'],
+                alignment=1,
+                spaceAfter=8
+            )
+
+            subheader_style = ParagraphStyle(
+                'TeacherSubheader',
+                parent=styles['Heading2'],
+                fontSize=14,
+                textColor=self.colors['secondary'],
+                alignment=1,
+                spaceAfter=16
+            )
+
+            elements.append(Paragraph("OFFICIAL TEACHER LETTER", header_style))
+            elements.append(Paragraph(f"{college['name']} • Faculty Assignment", subheader_style))
+
+            teacher_info_title = ParagraphStyle(
+                'TeacherInfoTitle',
+                parent=styles['Heading2'],
+                fontSize=13,
+                textColor=self.colors['primary'],
+                spaceAfter=6
+            )
+
+            elements.append(Paragraph("Educator Information", teacher_info_title))
+
+            teacher_table = Table([
+                ["Teacher Name:", student_data['teacher_name']],
+                ["Institution:", college['name']],
+                ["Document Date:", self.format_date(student_data['date_issued'], config)]
+            ], colWidths=[2*inch, 4*inch])
+
+            teacher_table.setStyle(TableStyle([
+                ('FONT', (0, 0), (-1, -1), 'Helvetica', 11),
+                ('BACKGROUND', (0, 0), (0, -1), self.colors['row_odd']),
+                ('BACKGROUND', (1, 0), (1, -1), colors.white),
+                ('TEXTCOLOR', (0, 0), (-1, -1), self.colors['text_dark']),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('BOX', (0, 0), (-1, -1), 1, self.colors['border']),
+                ('PADDING', (0, 0), (-1, -1), 8),
+            ]))
+
+            elements.append(teacher_table)
+            elements.append(Spacer(1, 14))
+
+            elements.append(Spacer(1, 18))
+
+            body_style = ParagraphStyle(
+                'TeacherBody',
+                parent=styles['BodyText'],
+                fontSize=11,
+                leading=15,
+                textColor=self.colors['text_dark'],
+                spaceAfter=10
+            )
+
+            body_text = (
+                f"This letter confirms the affiliation of {student_data['teacher_name']} with {college['name']}. "
+                "The educator information below is provided for verification and credential purposes."
+            )
+            elements.append(Paragraph(body_text, body_style))
+
+            support_text = (
+                "This document is issued solely to validate the educator's identity and institutional association."
+            )
+            elements.append(Paragraph(support_text, body_style))
+
+            signature_style = ParagraphStyle(
+                'TeacherSignature',
+                parent=styles['Normal'],
+                fontSize=10,
+                textColor=self.colors['secondary'],
+                alignment=1,
+                spaceBefore=16
+            )
+
+            elements.append(Paragraph(f"Signed on {self.format_date(student_data['date_issued'], config)}", signature_style))
+            elements.append(Paragraph(student_data['teacher_name'], signature_style))
+
+            verification_style = ParagraphStyle(
+                'TeacherVerification',
+                parent=styles['Normal'],
+                fontSize=9,
+                textColor=self.colors['text_light'],
+                alignment=1,
+                spaceBefore=10
+            )
+
+            verification_text = (
+                f"OFFICIAL FACULTY LETTER • {college['name']} • Valid for teacher assignment verification."
+            )
+            elements.append(Paragraph(verification_text, verification_style))
+
+            doc.build(elements)
+            return filename
+
+        except Exception as e:
+            logger.error(f"Failed to create teacher letter PDF {filename}: {e}")
+            return None
+
     def generate_courses(self, program):
         """Generate realistic courses based on program."""
         base_courses = {
