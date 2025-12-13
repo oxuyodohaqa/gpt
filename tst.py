@@ -1,35 +1,25 @@
 #!/usr/bin/env python3
 """
-PROFESSIONAL TUITION RECEIPT GENERATOR WITH INSTANT APPROVAL - PERFECT FOR SHEERID
-✅ TUITION RECEIPT: Professional receipt with all required fields
-✅ CLASS SCHEDULE: Complete schedule with enrollment proof
+PROFESSIONAL TEACHER LETTER GENERATOR WITH INSTANT APPROVAL - PERFECT FOR SHEERID
+✅ TEACHER LETTER: Official letter with educator name and header
 ✅ INSTANT APPROVAL: Super-fast verification system
-✅ INSTITUTION NAME: Full school name from JSON only  
-✅ STUDENT INFO: Name, ID, Program, Semester, Payment Proof
+✅ INSTITUTION NAME: Full school name from JSON only
 ✅ HARDCODED DATES: Current/upcoming term dates
 ✅ PDF OUTPUT: Professional formatting
 ✅ ALL 24 COUNTRIES: Complete global support
 ✅ VERIFICATION READY: Perfect for SheerID verification
 """
 
-import sys
 import os
 import re
 import logging
-from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
-import requests
 from faker import Faker
-import qrcode
 import random
 import json
-from datetime import datetime, timedelta, timezone
-from io import BytesIO
+from datetime import datetime, timedelta
 import time
 import concurrent.futures
 import threading
-from functools import lru_cache
-import gc
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib import colors
@@ -390,10 +380,28 @@ COUNTRY_CONFIG = {
     }
 }
 
+TEACHER_LETTER_TYPES = [
+    "Principal letter",
+    "Superintendent letter",
+    "Parent / guardian letter",
+    "Student notice letter (template)",
+    "Attendance letter",
+    "Behavior / discipline letter (template)",
+    "Policy & compliance letter (FERPA, AUP, AI use)",
+    "Consent / notification letter (template)",
+    "Staff memo",
+    "Staff notice",
+    "Enrollment letter",
+    "Transfer / withdrawal letter",
+    "Records request letter",
+    "Meeting invitation letter",
+    "Community / public letter"
+]
+
 class ProfessionalReceiptGenerator:
     def __init__(self):
         self.receipts_dir = "receipts"
-        self.students_file = "students.txt"
+        self.teachers_file = "teachers.txt"
         self.selected_country = None
         self.all_colleges = []
         
@@ -404,10 +412,10 @@ class ProfessionalReceiptGenerator:
         # Performance settings
         self.max_workers = 10
         self.memory_cleanup_interval = 100
-        
+
         self.stats = {
-            "receipts_generated": 0,
-            "students_saved": 0,
+            "teacher_letters_generated": 0,
+            "teachers_saved": 0,
             "start_time": None
         }
         
@@ -443,18 +451,18 @@ class ProfessionalReceiptGenerator:
                             os.remove(os.path.join(self.receipts_dir, f))
                         except Exception:
                             pass
-            if os.path.exists(self.students_file):
+            if os.path.exists(self.teachers_file):
                 try:
-                    os.remove(self.students_file)
+                    os.remove(self.teachers_file)
                 except Exception:
                     pass
-            
+
             print("🗑️  All previous data cleared!")
-            print("✅ PERFECT FORMAT: Professional receipt layout")
-            print("✅ INSTANT APPROVAL: Super-fast verification system") 
+            print("✅ PERFECT FORMAT: Professional letter layout")
+            print("✅ INSTANT APPROVAL: Super-fast verification system")
             print("✅ INSTITUTION: Full school name from JSON only")
-            print("✅ STUDENT INFO: Name, ID, Program, Semester")
-            print("✅ HARDCODED DATES: Current/upcoming term dates")
+            print("✅ EDUCATOR INFO: Name-only teacher confirmation")
+            print("✅ HARDCODED DATES: Current/upcoming term window")
             print("✅ ALL 24 COUNTRIES: Complete global support")
             print("="*70)
         except Exception as e:
@@ -563,36 +571,15 @@ class ProfessionalReceiptGenerator:
             return {'name': f'University of {config["name"]}', 'id': 'UNI001', 'type': 'UNIVERSITY'}
         return random.choice(self.all_colleges)
 
-    def generate_payment_data(self, country_config):
-        """Generate realistic payment data for tuition receipt."""
-        tuition_min, tuition_max = country_config['tuition_range']
-        fees_min, fees_max = country_config['fees_range']
-        
-        tuition_amount = random.randint(tuition_min, tuition_max)
-        fees_amount = random.randint(fees_min, fees_max)
-        total_amount = tuition_amount + fees_amount
-        
-        payment_methods = ["Credit Card", "Bank Transfer", "Online Payment", "Scholarship", "Financial Aid"]
-        transaction_id = f"TX{random.randint(100000, 999999)}"
-        
-        return {
-            "tuition_amount": tuition_amount,
-            "fees_amount": fees_amount,
-            "total_amount": total_amount,
-            "payment_method": random.choice(payment_methods),
-            "transaction_id": transaction_id,
-            "payment_date": datetime.now() - timedelta(days=random.randint(1, 30))
-        }
-
-    def generate_student_data(self, college):
-        """Generate student data with CURRENT/UPCOMING term dates."""
+    def generate_teacher_data(self, college):
+        """Generate teacher data with CURRENT/UPCOMING term dates."""
         fake = self.get_faker()
         config = COUNTRY_CONFIG[self.selected_country]
         
         first_name = fake.first_name()
         last_name = fake.last_name()
         full_name = clean_name(f"{first_name} {last_name}")
-        student_id = f"{fake.random_number(digits=8, fix_len=True)}"
+        teacher_id = f"{fake.random_number(digits=8, fix_len=True)}"
         
         # CURRENT/UPCOMING TERM DATES for SheerID verification
         current_date = datetime.now()
@@ -611,505 +598,153 @@ class ProfessionalReceiptGenerator:
             exam_week = datetime(current_date.year, 12, 20)
             academic_term = "Fall 2025"
         
-        # Country-specific programs
-        programs_by_country = {
-            'US': ["Computer Science", "Business Administration", "Engineering", "Psychology", "Biology"],
-            'GB': ["Computer Science", "Business Studies", "Engineering", "Medicine", "Law"],
-            'IN': ["Computer Science", "Business Administration", "Engineering", "Medicine", "Commerce"],
-            'ID': ["Computer Science", "Business", "Engineering", "Medicine"],
-            'AU': ["Computer Science", "Business", "Engineering", "Health Sciences"],
-            'DE': ["Informatik", "BWL", "Ingenieurwesen", "Medizin"],
-            'FR': ["Informatique", "Commerce", "Ingénierie", "Médecine"],
-            'ES': ["Informática", "Negocios", "Ingeniería", "Medicina"],
-            'IT': ["Informatica", "Economia", "Ingegneria", "Medicina"],
-            'BR': ["Ciência da Computação", "Administração", "Engenharia", "Medicina"],
-            'MX': ["Ciencias de la Computación", "Negocios", "Ingeniería", "Medicina"],
-            'NL': ["Informatica", "Bedrijfskunde", "Techniek", "Geneeskunde"],
-            'SE': ["Datateknik", "Företagsekonomi", "Teknik", "Medicin"],
-            'NO': ["Informatikk", "Bedriftsøkonomi", "Ingeniørvitenskap", "Medisin"],
-            'DK': ["Datalogi", "Erhvervsøkonomi", "Ingeniørvidenskab", "Medicin"],
-            'JP': ["Computer Science", "Business", "Engineering", "Medicine"],
-            'KR': ["Computer Science", "Business", "Engineering", "Medicine"],
-            'SG': ["Computer Science", "Business", "Engineering", "Medicine"],
-            'NZ': ["Computer Science", "Business", "Engineering", "Health Sciences"],
-            'ZA': ["Computer Science", "Business", "Engineering", "Medicine"],
-            'CN': ["Computer Science", "Business", "Engineering", "Medicine"],
-            'AE': ["Computer Science", "Business", "Engineering", "Medicine"],
-            'PH': ["Computer Science", "Business Administration", "Engineering", "Nursing", "Education"],
-            'CA': ["Computer Science", "Business", "Engineering", "Health Sciences"]
-        }
-        
-        programs = programs_by_country.get(self.selected_country, ["Computer Science", "Business", "Engineering"])
-        
-        # Generate payment data
-        payment_data = self.generate_payment_data(config)
-        
+        teacher_titles = [
+            "Professor", "Associate Professor", "Assistant Professor",
+            "Senior Lecturer", "Lecturer", "Adjunct Instructor"
+        ]
+        teacher_name = clean_name(f"{random.choice(teacher_titles)} {fake.first_name()} {fake.last_name()}")
+        letter_type = random.choice(TEACHER_LETTER_TYPES)
+
         return {
-            "full_name": full_name,
-            "student_id": student_id,
+            "teacher_name": teacher_name,
+            "teacher_id": teacher_id,
             "college": college,
-            "program": random.choice(programs),
             "academic_term": academic_term,
             "date_issued": date_issued,
             "first_day": first_day,
             "last_day": last_day,
             "exam_week": exam_week,
             "country_config": config,
-            "payment_data": payment_data
+            "letter_type": letter_type,
         }
 
-    def format_currency(self, amount, country_config):
-        """Format currency according to country preferences."""
-        symbol = country_config['currency_symbol']
-        if country_config['currency'] in ['USD', 'CAD', 'AUD', 'SGD', 'NZD']:
-            return f"{symbol}{amount:,.2f}"
-        elif country_config['currency'] in ['EUR', 'GBP']:
-            return f"{symbol}{amount:,.2f}"
-        elif country_config['currency'] in ['JPY', 'CNY']:
-            return f"{symbol}{amount:,}"
-        else:
-            return f"{symbol} {amount:,.2f}"
 
-    def create_tuition_receipt_pdf(self, student_data):
-        """Create a professional tuition receipt PDF perfect for SheerID verification."""
-        college = student_data['college']
-        student_id = student_data['student_id']
+    def create_teacher_letter_pdf(self, teacher_data):
+        """Create an official teacher letter with visible header and educator name."""
+        college = teacher_data['college']
+        teacher_id = teacher_data['teacher_id']
         college_id = college['id']
-        config = student_data['country_config']
-        payment_data = student_data['payment_data']
+        letter_type = teacher_data.get('letter_type', 'Teacher letter')
 
-        filename = f"TUITION_{student_id}_{college_id}.pdf"
+        filename = f"TEACHER_LETTER_{teacher_id}_{college_id}.pdf"
         filepath = os.path.join(self.receipts_dir, filename)
 
         try:
-            # Create PDF document
             doc = SimpleDocTemplate(
                 filepath,
                 pagesize=letter,
-                rightMargin=40,
-                leftMargin=40,
-                topMargin=40,
-                bottomMargin=20
+                rightMargin=50,
+                leftMargin=50,
+                topMargin=50,
+                bottomMargin=30
             )
-            
-            # Container for the 'Flowable' objects
+
             elements = []
             styles = getSampleStyleSheet()
-            
-            # Header with institution name
+
             header_style = ParagraphStyle(
-                'HeaderStyle',
+                'TeacherHeader',
                 parent=styles['Heading1'],
                 fontSize=20,
                 textColor=self.colors['primary'],
                 alignment=1,
-                spaceAfter=10
-            )
-            
-            header = Paragraph("OFFICIAL TUITION RECEIPT", header_style)
-            elements.append(header)
-            
-            # Institution Name (from JSON only)
-            uni_style = ParagraphStyle(
-                'UniversityStyle',
-                parent=styles['Heading2'],
-                fontSize=16,
-                textColor=self.colors['secondary'],
-                alignment=1,
-                spaceAfter=20
-            )
-            
-            university = Paragraph(college['name'], uni_style)
-            elements.append(university)
-            
-            elements.append(Spacer(1, 15))
-            
-            # Receipt Information
-            receipt_style = ParagraphStyle(
-                'ReceiptStyle',
-                parent=styles['Normal'],
-                fontSize=10,
-                textColor=self.colors['text_light'],
-                alignment=1,
-                spaceAfter=15
-            )
-            
-            receipt_info = Paragraph(f"Receipt Date: {self.format_date(student_data['date_issued'], config)} | Transaction ID: {payment_data['transaction_id']}", receipt_style)
-            elements.append(receipt_info)
-            
-            # Student Information Section
-            student_info_style = ParagraphStyle(
-                'StudentInfoTitle',
-                parent=styles['Heading2'],
-                fontSize=14,
-                textColor=self.colors['primary'],
                 spaceAfter=8
             )
-            
-            student_info_title = Paragraph("Student Information", student_info_style)
-            elements.append(student_info_title)
-            
-            # Student Info Table
-            student_data_table = [
-                ["Full Name:", student_data["full_name"]],
-                ["Student ID:", student_data["student_id"]],
-                ["Academic Program:", student_data["program"]],
-                ["Current Semester:", student_data["academic_term"]],
-                ["Enrollment Status:", "Full-Time Active"]
-            ]
-            
-            student_table = Table(student_data_table, colWidths=[2*inch, 4*inch])
-            student_table.setStyle(TableStyle([
-                ('FONT', (0, 0), (-1, -1), 'Helvetica', 11),
-                ('BACKGROUND', (0, 0), (0, -1), self.colors['row_odd']),
-                ('BACKGROUND', (1, 0), (1, -1), colors.white),
-                ('TEXTCOLOR', (0, 0), (-1, -1), self.colors['text_dark']),
-                ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-                ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('LINEBELOW', (0, 0), (-1, -1), 1, self.colors['border']),
-                ('BOX', (0, 0), (-1, -1), 1, self.colors['border']),
-                ('PADDING', (0, 0), (-1, -1), 8),
-            ]))
-            
-            elements.append(student_table)
-            elements.append(Spacer(1, 15))
-            
-            # Payment Details Section
-            payment_title = Paragraph("Payment Details", student_info_style)
-            elements.append(payment_title)
-            
-            payment_details = [
-                ["Description", "Amount"],
-                ["Tuition Fee", self.format_currency(payment_data['tuition_amount'], config)],
-                ["University Fees", self.format_currency(payment_data['fees_amount'], config)],
-                ["", ""],
-                ["TOTAL PAID", self.format_currency(payment_data['total_amount'], config)]
-            ]
-            
-            payment_table = Table(payment_details, colWidths=[4*inch, 2*inch])
-            payment_table.setStyle(TableStyle([
-                # Header
-                ('BACKGROUND', (0, 0), (-1, 0), self.colors['primary']),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold', 12),
-                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                
-                # Data rows
-                ('FONT', (0, 1), (-1, -2), 'Helvetica', 11),
-                ('FONT', (0, -1), (-1, -1), 'Helvetica-Bold', 12),
-                ('TEXTCOLOR', (0, 1), (-1, -1), self.colors['text_dark']),
-                ('ALIGN', (0, 1), (0, -1), 'LEFT'),
-                ('ALIGN', (1, 1), (1, -1), 'RIGHT'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                
-                # Grid and styling
-                ('LINEABOVE', (0, -1), (-1, -1), 2, self.colors['accent']),
-                ('BACKGROUND', (0, -1), (-1, -1), self.colors['success']),
-                ('TEXTCOLOR', (0, -1), (-1, -1), colors.white),
-                ('LINEBELOW', (0, 0), (-1, -2), 0.5, self.colors['border']),
-                ('BOX', (0, 0), (-1, -1), 1, self.colors['border']),
-                ('PADDING', (0, 0), (-1, -1), 10),
-            ]))
-            
-            elements.append(payment_table)
-            elements.append(Spacer(1, 10))
-            
-            # Payment Method
-            payment_method_style = ParagraphStyle(
-                'PaymentMethod',
+
+            subheader_style = ParagraphStyle(
+                'TeacherSubheader',
+                parent=styles['Heading2'],
+                fontSize=14,
+                textColor=self.colors['secondary'],
+                alignment=1,
+                spaceAfter=10
+            )
+
+            name_style = ParagraphStyle(
+                'TeacherName',
+                parent=styles['Heading2'],
+                fontSize=16,
+                textColor=self.colors['text_dark'],
+                alignment=1,
+                spaceAfter=12
+            )
+
+            elements.append(Paragraph(letter_type.upper(), header_style))
+            elements.append(Paragraph("Educator Identity Confirmation", subheader_style))
+            elements.append(Paragraph(teacher_data['teacher_name'], name_style))
+
+            elements.append(Spacer(1, 18))
+
+            body_style = ParagraphStyle(
+                'TeacherBody',
+                parent=styles['BodyText'],
+                fontSize=11,
+                leading=15,
+                textColor=self.colors['text_dark'],
+                spaceAfter=10
+            )
+
+            body_text = (
+                f"This {letter_type.lower()} confirms the identity of {teacher_data['teacher_name']} "
+                "for educator verification and SheerID-style review."
+            )
+            elements.append(Paragraph(body_text, body_style))
+
+            scope_style = ParagraphStyle(
+                'TeacherScope',
                 parent=styles['Normal'],
                 fontSize=10,
                 textColor=self.colors['text_light'],
-                alignment=0
+                alignment=1,
+                spaceAfter=8
             )
-            
-            payment_method = Paragraph(f"Payment Method: {payment_data['payment_method']} | Paid on: {self.format_date(payment_data['payment_date'], config)}", payment_method_style)
-            elements.append(payment_method)
-            
-            elements.append(Spacer(1, 15))
-            
-            # Semester Dates
-            dates_title = Paragraph("Semester Information", student_info_style)
-            elements.append(dates_title)
-            
-            dates_data = [
-                ["First Day of Classes:", self.format_date(student_data["first_day"], config)],
-                ["Last Day of Classes:", self.format_date(student_data["last_day"], config)],
-                ["Final Exams:", self.format_date(student_data["exam_week"], config)]
-            ]
-            
-            dates_table = Table(dates_data, colWidths=[2.5*inch, 3.5*inch])
-            dates_table.setStyle(TableStyle([
-                ('FONT', (0, 0), (-1, -1), 'Helvetica', 11),
-                ('BACKGROUND', (0, 0), (0, -1), self.colors['row_odd']),
-                ('BACKGROUND', (1, 0), (1, -1), colors.white),
-                ('TEXTCOLOR', (0, 0), (-1, -1), self.colors['text_dark']),
-                ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-                ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('LINEBELOW', (0, 0), (-1, -1), 1, self.colors['border']),
-                ('BOX', (0, 0), (-1, -1), 1, self.colors['border']),
-                ('PADDING', (0, 0), (-1, -1), 8),
-            ]))
-            
-            elements.append(dates_table)
-            elements.append(Spacer(1, 20))
-            
-            # Verification QR Code (placeholder text)
+            elements.append(Paragraph("Teacher-only content. No student data included.", scope_style))
+
+            signature_style = ParagraphStyle(
+                'TeacherSignature',
+                parent=styles['Normal'],
+                fontSize=10,
+                textColor=self.colors['secondary'],
+                alignment=1,
+                spaceBefore=16
+            )
+
+            elements.append(Paragraph(teacher_data['teacher_name'], signature_style))
+
             verification_style = ParagraphStyle(
-                'VerificationStyle',
+                'TeacherVerification',
                 parent=styles['Normal'],
                 fontSize=9,
                 textColor=self.colors['text_light'],
                 alignment=1,
                 spaceBefore=10
             )
-            
-            verification = Paragraph(
-                f"VERIFIED | {college['name']} | Student Status: ACTIVE | This receipt is valid for student verification purposes.",
-                verification_style
-            )
-            elements.append(verification)
-            
-            # Official Stamp
-            stamp_style = ParagraphStyle(
-                'StampStyle',
-                parent=styles['Normal'],
-                fontSize=8,
-                textColor=self.colors['accent'],
-                alignment=1,
-                spaceBefore=5
-            )
-            
-            stamp = Paragraph("OFFICIAL UNIVERSITY RECEIPT • VALID FOR VERIFICATION", stamp_style)
-            elements.append(stamp)
-            
-            # Build PDF
-            doc.build(elements)
-            return filename, student_data
 
-        except Exception as e:
-            logger.error(f"Failed to create PDF receipt {filename}: {e}")
-            return None, student_data
+            verification_text = (
+                f"OFFICIAL TEACHER LETTER • {letter_type} • Educator-only verification"
+            )
+            elements.append(Paragraph(verification_text, verification_style))
 
-    def create_class_schedule_pdf(self, student_data):
-        """Create a professional class schedule PDF perfect for SheerID verification."""
-        college = student_data['college']
-        student_id = student_data['student_id']
-        college_id = college['id']
-        config = student_data['country_config']
-
-        filename = f"SCHEDULE_{student_id}_{college_id}.pdf"
-        filepath = os.path.join(self.receipts_dir, filename)
-
-        try:
-            # Create PDF document
-            doc = SimpleDocTemplate(
-                filepath,
-                pagesize=letter,
-                rightMargin=40,
-                leftMargin=40,
-                topMargin=40,
-                bottomMargin=20
-            )
-            
-            # Container for the 'Flowable' objects
-            elements = []
-            styles = getSampleStyleSheet()
-            
-            # Header
-            header_style = ParagraphStyle(
-                'HeaderStyle',
-                parent=styles['Heading1'],
-                fontSize=20,
-                textColor=self.colors['primary'],
-                alignment=1,
-                spaceAfter=10
-            )
-            
-            header = Paragraph("OFFICIAL CLASS SCHEDULE", header_style)
-            elements.append(header)
-            
-            # Institution Name
-            uni_style = ParagraphStyle(
-                'UniversityStyle',
-                parent=styles['Heading2'],
-                fontSize=16,
-                textColor=self.colors['secondary'],
-                alignment=1,
-                spaceAfter=15
-            )
-            
-            university = Paragraph(college['name'], uni_style)
-            elements.append(university)
-            
-            elements.append(Spacer(1, 10))
-            
-            # Student Information
-            student_info_style = ParagraphStyle(
-                'StudentInfoTitle',
-                parent=styles['Heading2'],
-                fontSize=14,
-                textColor=self.colors['primary'],
-                spaceAfter=8
-            )
-            
-            # Student Info Table
-            student_data_table = [
-                ["Student Name:", student_data["full_name"]],
-                ["Student ID:", student_data["student_id"]],
-                ["Program:", student_data["program"]],
-                ["Semester:", student_data["academic_term"]],
-                ["Status:", "Full-Time Active"]
-            ]
-            
-            student_table = Table(student_data_table, colWidths=[1.5*inch, 4.5*inch])
-            student_table.setStyle(TableStyle([
-                ('FONT', (0, 0), (-1, -1), 'Helvetica', 11),
-                ('BACKGROUND', (0, 0), (0, -1), self.colors['row_odd']),
-                ('BACKGROUND', (1, 0), (1, -1), colors.white),
-                ('TEXTCOLOR', (0, 0), (-1, -1), self.colors['text_dark']),
-                ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-                ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('BOX', (0, 0), (-1, -1), 1, self.colors['border']),
-                ('PADDING', (0, 0), (-1, -1), 8),
-            ]))
-            
-            elements.append(student_table)
-            elements.append(Spacer(1, 15))
-            
-            # Class Schedule
-            schedule_title = Paragraph("Class Schedule", student_info_style)
-            elements.append(schedule_title)
-            
-            # Generate realistic courses
-            courses = self.generate_courses(student_data['program'])
-            
-            course_headers = ["Course Code", "Course Name", "Days", "Time", "Room", "Instructor"]
-            course_data = [course_headers]
-            
-            for course in courses:
-                course_data.append([
-                    course["code"],
-                    course["name"],
-                    course["days"],
-                    course["time"],
-                    course["room"],
-                    course["instructor"]
-                ])
-            
-            course_table = Table(course_data, colWidths=[1*inch, 1.8*inch, 0.6*inch, 1.2*inch, 1*inch, 1.2*inch])
-            course_table.setStyle(TableStyle([
-                # Header
-                ('BACKGROUND', (0, 0), (-1, 0), self.colors['primary']),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold', 10),
-                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                
-                # Data rows
-                ('FONT', (0, 1), (-1, -1), 'Helvetica', 9),
-                ('TEXTCOLOR', (0, 1), (-1, -1), self.colors['text_dark']),
-                ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
-                ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'),
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [self.colors['row_even'], self.colors['row_odd']]),
-                ('GRID', (0, 0), (-1, -1), 0.5, self.colors['border']),
-                ('PADDING', (0, 0), (-1, -1), 6),
-            ]))
-            
-            elements.append(course_table)
-            elements.append(Spacer(1, 15))
-            
-            # Semester Dates
-            dates_title = Paragraph("Important Dates", student_info_style)
-            elements.append(dates_title)
-            
-            dates_data = [
-                ["Semester Start:", self.format_date(student_data["first_day"], config)],
-                ["Semester End:", self.format_date(student_data["last_day"], config)],
-                ["Final Exams:", self.format_date(student_data["exam_week"], config)]
-            ]
-            
-            dates_table = Table(dates_data, colWidths=[1.5*inch, 4.5*inch])
-            dates_table.setStyle(TableStyle([
-                ('FONT', (0, 0), (-1, -1), 'Helvetica', 11),
-                ('BACKGROUND', (0, 0), (0, -1), self.colors['row_odd']),
-                ('BACKGROUND', (1, 0), (1, -1), colors.white),
-                ('TEXTCOLOR', (0, 0), (-1, -1), self.colors['text_dark']),
-                ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-                ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-                ('BOX', (0, 0), (-1, -1), 1, self.colors['border']),
-                ('PADDING', (0, 0), (-1, -1), 8),
-            ]))
-            
-            elements.append(dates_table)
-            
-            # Verification Footer
-            footer_style = ParagraphStyle(
-                'FooterStyle',
-                parent=styles['Normal'],
-                fontSize=8,
-                textColor=self.colors['text_light'],
-                alignment=1,
-                spaceBefore=20
-            )
-            
-            footer = Paragraph(
-                f"UNOFFICIAL STUDENT SCHEDULE • {college['name']} • Valid for verification purposes • Generated on: {self.format_date(student_data['date_issued'], config)}",
-                footer_style
-            )
-            elements.append(footer)
-            
-            # Build PDF
             doc.build(elements)
             return filename
 
         except Exception as e:
-            logger.error(f"Failed to create schedule PDF {filename}: {e}")
+            logger.error(f"Failed to create teacher letter PDF {filename}: {e}")
             return None
-
-    def generate_courses(self, program):
-        """Generate realistic courses based on program."""
-        base_courses = {
-            "Computer Science": [
-                {"code": "CS101", "name": "Introduction to Programming", "days": "MWF", "time": "09:00-09:50", "room": "CSB-201", "instructor": "Dr. Smith"},
-                {"code": "CS201", "name": "Data Structures", "days": "TTH", "time": "10:30-11:45", "room": "CSB-305", "instructor": "Prof. Johnson"},
-                {"code": "MATH151", "name": "Calculus I", "days": "MWF", "time": "11:00-11:50", "room": "MATH-102", "instructor": "Dr. Lee"},
-                {"code": "CS301", "name": "Algorithms", "days": "TTH", "time": "13:00-14:15", "room": "CSB-410", "instructor": "Prof. Garcia"},
-                {"code": "PHYS101", "name": "Physics I", "days": "MWF", "time": "14:00-14:50", "room": "SCI-205", "instructor": "Dr. Brown"}
-            ],
-            "Business Administration": [
-                {"code": "BUS101", "name": "Introduction to Business", "days": "MWF", "time": "09:00-09:50", "room": "BUS-101", "instructor": "Prof. Wilson"},
-                {"code": "ACC201", "name": "Financial Accounting", "days": "TTH", "time": "10:30-11:45", "room": "BUS-205", "instructor": "Dr. Martinez"},
-                {"code": "MKT301", "name": "Marketing Principles", "days": "MWF", "time": "11:00-11:50", "room": "BUS-310", "instructor": "Prof. Davis"},
-                {"code": "FIN401", "name": "Corporate Finance", "days": "TTH", "time": "13:00-14:15", "room": "BUS-415", "instructor": "Dr. Thompson"},
-                {"code": "MGT351", "name": "Organizational Behavior", "days": "MWF", "time": "14:00-14:50", "room": "BUS-320", "instructor": "Prof. Anderson"}
-            ],
-            "Engineering": [
-                {"code": "ENG101", "name": "Introduction to Engineering", "days": "MWF", "time": "09:00-09:50", "room": "ENG-101", "instructor": "Dr. Clark"},
-                {"code": "MATH251", "name": "Calculus II", "days": "TTH", "time": "10:30-11:45", "room": "MATH-105", "instructor": "Prof. White"},
-                {"code": "PHYS201", "name": "Physics II", "days": "MWF", "time": "11:00-11:50", "room": "SCI-210", "instructor": "Dr. Harris"},
-                {"code": "ENG301", "name": "Thermodynamics", "days": "TTH", "time": "13:00-14:15", "room": "ENG-305", "instructor": "Prof. Martin"},
-                {"code": "CSE211", "name": "Circuit Analysis", "days": "MWF", "time": "14:00-14:50", "room": "ENG-410", "instructor": "Dr. Young"}
-            ]
-        }
-        
-        return base_courses.get(program, base_courses["Computer Science"])
 
     def format_date(self, date_obj, country_config):
         """Format date according to country preferences."""
         return date_obj.strftime(country_config['date_format'])
 
-    def save_student(self, student_data):
-        """Save student data to file."""
+    def save_teacher(self, teacher_data):
+        """Save teacher data to file."""
         try:
-            with open(self.students_file, 'a', encoding='utf-8', buffering=32768) as f:
-                line = f"{student_data['full_name']}|{student_data['student_id']}|{student_data['college']['id']}|{student_data['college']['name']}|{self.selected_country}|{student_data['academic_term']}|{student_data['date_issued'].strftime('%Y-%m-%d')}|{student_data['first_day'].strftime('%Y-%m-%d')}|{student_data['last_day'].strftime('%Y-%m-%d')}\n"
+            with open(self.teachers_file, 'a', encoding='utf-8', buffering=32768) as f:
+                line = f"{teacher_data['teacher_name']}|{teacher_data['teacher_id']}|{teacher_data['college']['id']}|{teacher_data['college']['name']}|{self.selected_country}|{teacher_data['academic_term']}|{teacher_data['letter_type']}|{teacher_data['date_issued'].strftime('%Y-%m-%d')}\n"
                 f.write(line)
                 f.flush()
 
-            self.stats["students_saved"] += 1
+            self.stats["teachers_saved"] += 1
             return True
         except Exception as e:
             logger.error(f"⚠️ Save error: {e}")
@@ -1120,32 +755,29 @@ class ProfessionalReceiptGenerator:
             college = self.select_random_college()
             if college is None:
                 return False
-            
-            student_data = self.generate_student_data(college)
-                
-            # Generate both tuition receipt and class schedule
-            receipt_filename, _ = self.create_tuition_receipt_pdf(student_data)
-            schedule_filename = self.create_class_schedule_pdf(student_data)
-            
-            if receipt_filename and schedule_filename:
-                self.save_student(student_data)
-                self.stats["receipts_generated"] += 1
+
+            teacher_data = self.generate_teacher_data(college)
+            teacher_letter_filename = self.create_teacher_letter_pdf(teacher_data)
+
+            if teacher_letter_filename:
+                self.save_teacher(teacher_data)
+                self.stats["teacher_letters_generated"] += 1
                 return True
             return False
         except Exception as e:
-            logger.error(f"Error processing student {num}: {e}")
+            logger.error(f"Error processing teacher {num}: {e}")
             return False
 
     def generate_bulk(self, quantity):
         config = COUNTRY_CONFIG[self.selected_country]
-        print(f"⚡ Generating {quantity} TUITION RECEIPTS + SCHEDULES for {config['flag']} {config['name']}")
+        print(f"⚡ Generating {quantity} OFFICIAL TEACHER LETTERS for {config['flag']} {config['name']}")
         print(f"✅ {len(self.all_colleges)} colleges loaded from JSON")
         print("✅ INSTITUTION: Full school names from JSON only")
-        print("✅ STUDENT INFO: Name, ID, Program, Semester, Payment Proof")
-        print("✅ CURRENT DATES: Current/upcoming semester dates")
-        print("✅ TUITION RECEIPT: Professional receipt with payment details")
-        print("✅ CLASS SCHEDULE: Complete schedule with enrollment proof")
+        print("✅ EDUCATOR INFO: Name-only teacher confirmation")
+        print("✅ CURRENT DATES: Current/upcoming semester window")
+        print("✅ TEACHER LETTER: Official educator identity header")
         print("✅ SHEERID READY: Perfect for instant verification")
+        print("✅ LETTER TYPES: " + ", ".join(TEACHER_LETTER_TYPES))
         print("=" * 70)
 
         start = time.time()
@@ -1169,7 +801,7 @@ class ProfessionalReceiptGenerator:
                         elapsed = time.time() - start
                         rate = i / elapsed if elapsed > 0 else 0
                         rate_per_min = rate * 60
-                        print(f"Progress: {i}/{quantity} ({(i/quantity*100):.1f}%) | Rate: {rate_per_min:.0f} sets/min")
+                        print(f"Progress: {i}/{quantity} ({(i/quantity*100):.1f}%) | Rate: {rate_per_min:.0f} letters/min")
         
         duration = time.time() - start
         rate_per_min = (success / duration) * 60 if duration > 0 else 0
@@ -1178,11 +810,11 @@ class ProfessionalReceiptGenerator:
         print(f"✅ COMPLETE - {config['flag']} {config['name']}")
         print("="*70)
         print(f"⏱️  Time: {duration:.1f}s")
-        print(f"⚡ Speed: {rate_per_min:.0f} receipt+schedule sets/minute")
+        print(f"⚡ Speed: {rate_per_min:.0f} letters/minute")
         print(f"✅ Success: {success}/{quantity}")
         print(f"📁 Folder: {self.receipts_dir}/")
-        print(f"📄 Students: {self.students_file}")
-        print(f"✅ FORMAT: Professional PDF receipts + schedules")
+        print(f"📄 Teachers: {self.teachers_file}")
+        print(f"✅ FORMAT: Official teacher letters only")
         print(f"✅ INSTITUTION: Names from JSON files only")
         print(f"✅ DATES: Current/upcoming semester dates")
         print(f"✅ SHEERID: Perfect for instant verification")
@@ -1197,7 +829,7 @@ class ProfessionalReceiptGenerator:
             print(f"Country: {config['flag']} {config['name']}")
             print(f"Total Generated: {total}")
             print(f"Colleges from JSON: {len(self.all_colleges)}")
-            print(f"Mode: Professional receipts + schedules")
+            print(f"Mode: Official teacher letters only")
             print(f"Institution: JSON names only")
             print(f"Dates: Current/upcoming semester")
             print(f"Verification: SheerID ready")
@@ -1219,20 +851,20 @@ class ProfessionalReceiptGenerator:
                 continue
             
             self.generate_bulk(quantity)
-            total = self.stats["receipts_generated"]
+            total = self.stats["teacher_letters_generated"]
 
 def main():
     print("\n" + "="*70)
-    print("PROFESSIONAL TUITION RECEIPT GENERATOR - SHEERID VERIFICATION READY")
+    print("PROFESSIONAL TEACHER LETTER GENERATOR - SHEERID VERIFICATION READY")
     print("="*70)
-    print("✅ TUITION RECEIPT: Professional receipt with payment proof")
-    print("✅ CLASS SCHEDULE: Complete schedule with enrollment proof") 
+    print("✅ TEACHER LETTER: Official educator letter with visible header")
     print("✅ INSTITUTION: Full school names from JSON only")
-    print("✅ STUDENT INFO: Name, ID, Program, Semester, Payment")
+    print("✅ EDUCATOR INFO: Name-only verification focus")
     print("✅ CURRENT DATES: Current/upcoming semester dates")
     print("✅ INSTANT APPROVAL: Super-fast verification system")
     print("✅ PERFECT FORMAT: Professional PDF layout")
     print("✅ ALL 24 COUNTRIES: Complete global support")
+    print("✅ LETTER TYPES: " + ", ".join(TEACHER_LETTER_TYPES))
     print("="*70)
     
     gen = ProfessionalReceiptGenerator()
