@@ -2,6 +2,7 @@
 """
 PROFESSIONAL TEACHER LETTER GENERATOR WITH INSTANT APPROVAL - PERFECT FOR SHEERID
 ✅ TEACHER LETTER: Official letter with educator name and header
+✅ TEACHER PAYSLIP: Professional payroll PDF for educators
 ✅ INSTANT APPROVAL: Super-fast verification system
 ✅ INSTITUTION NAME: Full school name from JSON only
 ✅ HARDCODED DATES: Current/upcoming term dates
@@ -415,6 +416,7 @@ class ProfessionalReceiptGenerator:
 
         self.stats = {
             "teacher_letters_generated": 0,
+            "payslips_generated": 0,
             "teachers_saved": 0,
             "start_time": None
         }
@@ -459,6 +461,7 @@ class ProfessionalReceiptGenerator:
 
             print("🗑️  All previous data cleared!")
             print("✅ PERFECT FORMAT: Professional letter layout")
+            print("✅ PAYSLIPS: Professional salary breakdowns")
             print("✅ INSTANT APPROVAL: Super-fast verification system")
             print("✅ INSTITUTION: Full school name from JSON only")
             print("✅ EDUCATOR INFO: Name-only teacher confirmation")
@@ -732,6 +735,160 @@ class ProfessionalReceiptGenerator:
             logger.error(f"Failed to create teacher letter PDF {filename}: {e}")
             return None
 
+    def format_currency(self, amount: float, country_config: dict) -> str:
+        """Render currency with symbol and code for clarity."""
+        symbol = country_config.get('currency_symbol', '')
+        code = country_config.get('currency', '')
+        return f"{symbol}{amount:,.2f} {code}".strip()
+
+    def generate_payslip_details(self, teacher_data: dict) -> dict:
+        """Create a professional salary breakdown for the payslip."""
+        config = teacher_data['country_config']
+        salary_range = config.get('salary_range', (3200, 6500))
+        base_salary = round(random.uniform(*salary_range), 2)
+
+        housing_allowance = round(base_salary * 0.15, 2)
+        transport_allowance = round(base_salary * 0.07, 2)
+        bonus = round(base_salary * random.uniform(0.03, 0.08), 2)
+
+        gross_pay = base_salary + housing_allowance + transport_allowance + bonus
+
+        tax = round(gross_pay * 0.12, 2)
+        retirement = round(gross_pay * 0.06, 2)
+        deductions_total = tax + retirement
+
+        net_pay = round(gross_pay - deductions_total, 2)
+
+        period_start = teacher_data['first_day']
+        period_end = period_start + timedelta(days=29)
+
+        return {
+            "period_start": period_start,
+            "period_end": period_end,
+            "base_salary": base_salary,
+            "housing_allowance": housing_allowance,
+            "transport_allowance": transport_allowance,
+            "bonus": bonus,
+            "gross_pay": gross_pay,
+            "tax": tax,
+            "retirement": retirement,
+            "deductions_total": deductions_total,
+            "net_pay": net_pay,
+        }
+
+    def create_teacher_payslip_pdf(self, teacher_data: dict, payslip: dict):
+        """Generate a realistic teacher payslip with itemized amounts."""
+        college = teacher_data['college']
+        teacher_id = teacher_data['teacher_id']
+        college_id = college['id']
+        config = teacher_data['country_config']
+
+        filename = f"TEACHER_PAYSLIP_{teacher_id}_{college_id}.pdf"
+        filepath = os.path.join(self.receipts_dir, filename)
+
+        try:
+            doc = SimpleDocTemplate(
+                filepath,
+                pagesize=letter,
+                rightMargin=50,
+                leftMargin=50,
+                topMargin=50,
+                bottomMargin=30
+            )
+
+            elements = []
+            styles = getSampleStyleSheet()
+
+            header_style = ParagraphStyle(
+                'PayslipHeader',
+                parent=styles['Heading1'],
+                fontSize=18,
+                textColor=self.colors['primary'],
+                alignment=1,
+                spaceAfter=6
+            )
+
+            elements.append(Paragraph("OFFICIAL TEACHER PAYSLIP", header_style))
+
+            meta_style = ParagraphStyle(
+                'PayslipMeta',
+                parent=styles['Normal'],
+                fontSize=10,
+                textColor=self.colors['text_dark'],
+                spaceAfter=4
+            )
+
+            period_text = (
+                f"Pay Period: {self.format_date(payslip['period_start'], config)} - "
+                f"{self.format_date(payslip['period_end'], config)}"
+            )
+            elements.append(Paragraph(period_text, meta_style))
+            elements.append(Paragraph(f"Teacher: {teacher_data['teacher_name']} (ID: {teacher_id})", meta_style))
+            elements.append(Paragraph(f"Institution: {college['name']}", meta_style))
+            elements.append(Spacer(1, 12))
+
+            summary_data = [
+                ["Base Salary", self.format_currency(payslip['base_salary'], config)],
+                ["Housing Allowance", self.format_currency(payslip['housing_allowance'], config)],
+                ["Transport Allowance", self.format_currency(payslip['transport_allowance'], config)],
+                ["Performance Bonus", self.format_currency(payslip['bonus'], config)],
+                ["Gross Pay", self.format_currency(payslip['gross_pay'], config)],
+            ]
+
+            summary_table = Table(summary_data, colWidths=[240, 200])
+            summary_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), self.colors['header_bg']),
+                ('TEXTCOLOR', (0, 0), (-1, 0), self.colors['white']),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+                ('BACKGROUND', (0, 1), (-1, -1), self.colors['row_even']),
+                ('GRID', (0, 0), (-1, -1), 0.5, self.colors['border']),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ]))
+            elements.append(summary_table)
+
+            elements.append(Spacer(1, 10))
+
+            deductions_data = [
+                ["Tax (12%)", self.format_currency(payslip['tax'], config)],
+                ["Retirement (6%)", self.format_currency(payslip['retirement'], config)],
+                ["Total Deductions", self.format_currency(payslip['deductions_total'], config)],
+                ["Net Pay", self.format_currency(payslip['net_pay'], config)],
+            ]
+
+            deductions_table = Table(deductions_data, colWidths=[240, 200])
+            deductions_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), self.colors['header_bg']),
+                ('TEXTCOLOR', (0, 0), (-1, 0), self.colors['white']),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+                ('BACKGROUND', (0, 1), (-1, -1), self.colors['row_odd']),
+                ('GRID', (0, 0), (-1, -1), 0.5, self.colors['border']),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ]))
+            elements.append(deductions_table)
+
+            elements.append(Spacer(1, 12))
+
+            verification_style = ParagraphStyle(
+                'PayslipVerification',
+                parent=styles['Normal'],
+                fontSize=9,
+                textColor=self.colors['text_light'],
+                alignment=1,
+                spaceBefore=6
+            )
+            verification_text = (
+                "Teacher-only payroll document • Authentic formatting • No student data"
+            )
+            elements.append(Paragraph(verification_text, verification_style))
+
+            doc.build(elements)
+            return filename
+        except Exception as e:
+            logger.error(f"Failed to create teacher payslip PDF {filename}: {e}")
+            return None
+
     def format_date(self, date_obj, country_config):
         """Format date according to country preferences."""
         return date_obj.strftime(country_config['date_format'])
@@ -739,8 +896,15 @@ class ProfessionalReceiptGenerator:
     def save_teacher(self, teacher_data):
         """Save teacher data to file."""
         try:
+            net_pay = teacher_data.get('payslip_net')
+            net_pay_str = self.format_currency(net_pay, teacher_data['country_config']) if net_pay is not None else ""
             with open(self.teachers_file, 'a', encoding='utf-8', buffering=32768) as f:
-                line = f"{teacher_data['teacher_name']}|{teacher_data['teacher_id']}|{teacher_data['college']['id']}|{teacher_data['college']['name']}|{self.selected_country}|{teacher_data['academic_term']}|{teacher_data['letter_type']}|{teacher_data['date_issued'].strftime('%Y-%m-%d')}\n"
+                line = (
+                    f"{teacher_data['teacher_name']}|{teacher_data['teacher_id']}|"
+                    f"{teacher_data['college']['id']}|{teacher_data['college']['name']}|{self.selected_country}|"
+                    f"{teacher_data['academic_term']}|{teacher_data['letter_type']}|"
+                    f"{teacher_data['date_issued'].strftime('%Y-%m-%d')}|{net_pay_str}\n"
+                )
                 f.write(line)
                 f.flush()
 
@@ -758,10 +922,14 @@ class ProfessionalReceiptGenerator:
 
             teacher_data = self.generate_teacher_data(college)
             teacher_letter_filename = self.create_teacher_letter_pdf(teacher_data)
+            payslip_details = self.generate_payslip_details(teacher_data)
+            payslip_filename = self.create_teacher_payslip_pdf(teacher_data, payslip_details)
 
-            if teacher_letter_filename:
+            if teacher_letter_filename and payslip_filename:
+                teacher_data['payslip_net'] = payslip_details['net_pay']
                 self.save_teacher(teacher_data)
                 self.stats["teacher_letters_generated"] += 1
+                self.stats["payslips_generated"] += 1
                 return True
             return False
         except Exception as e:
@@ -770,12 +938,13 @@ class ProfessionalReceiptGenerator:
 
     def generate_bulk(self, quantity):
         config = COUNTRY_CONFIG[self.selected_country]
-        print(f"⚡ Generating {quantity} OFFICIAL TEACHER LETTERS for {config['flag']} {config['name']}")
+        print(f"⚡ Generating {quantity} OFFICIAL TEACHER LETTERS & PAYSLIPS for {config['flag']} {config['name']}")
         print(f"✅ {len(self.all_colleges)} colleges loaded from JSON")
         print("✅ INSTITUTION: Full school names from JSON only")
         print("✅ EDUCATOR INFO: Name-only teacher confirmation")
         print("✅ CURRENT DATES: Current/upcoming semester window")
         print("✅ TEACHER LETTER: Official educator identity header")
+        print("✅ TEACHER PAYSLIP: Professional salary breakdowns")
         print("✅ SHEERID READY: Perfect for instant verification")
         print("✅ LETTER TYPES: " + ", ".join(TEACHER_LETTER_TYPES))
         print("=" * 70)
@@ -814,7 +983,8 @@ class ProfessionalReceiptGenerator:
         print(f"✅ Success: {success}/{quantity}")
         print(f"📁 Folder: {self.receipts_dir}/")
         print(f"📄 Teachers: {self.teachers_file}")
-        print(f"✅ FORMAT: Official teacher letters only")
+        print(f"✅ FORMAT: Official teacher letters and payslips")
+        print(f"✅ PAYSLIPS: Matching professional payslips saved")
         print(f"✅ INSTITUTION: Names from JSON files only")
         print(f"✅ DATES: Current/upcoming semester dates")
         print(f"✅ SHEERID: Perfect for instant verification")
@@ -829,7 +999,7 @@ class ProfessionalReceiptGenerator:
             print(f"Country: {config['flag']} {config['name']}")
             print(f"Total Generated: {total}")
             print(f"Colleges from JSON: {len(self.all_colleges)}")
-            print(f"Mode: Official teacher letters only")
+            print(f"Mode: Official teacher letters with matching payslips")
             print(f"Institution: JSON names only")
             print(f"Dates: Current/upcoming semester")
             print(f"Verification: SheerID ready")
@@ -849,15 +1019,16 @@ class ProfessionalReceiptGenerator:
             if quantity < 1:
                 print("❌ Enter a number greater than 0")
                 continue
-            
+
             self.generate_bulk(quantity)
-            total = self.stats["teacher_letters_generated"]
+            total = self.stats["teachers_saved"]
 
 def main():
     print("\n" + "="*70)
     print("PROFESSIONAL TEACHER LETTER GENERATOR - SHEERID VERIFICATION READY")
     print("="*70)
     print("✅ TEACHER LETTER: Official educator letter with visible header")
+    print("✅ TEACHER PAYSLIP: Professional, realistic payroll layout")
     print("✅ INSTITUTION: Full school names from JSON only")
     print("✅ EDUCATOR INFO: Name-only verification focus")
     print("✅ CURRENT DATES: Current/upcoming semester dates")
