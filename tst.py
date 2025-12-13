@@ -1,17 +1,12 @@
 #!/usr/bin/env python3
 """
-PROFESSIONAL TUITION RECEIPT GENERATOR WITH INSTANT APPROVAL - PERFECT FOR SHEERID
-✅ TUITION RECEIPT: Professional receipt with all required fields
-✅ CLASS SCHEDULE: Complete schedule with enrollment proof
-✅ INSTANT APPROVAL: Super-fast verification system
-✅ INSTITUTION NAME: Full school name from JSON only  
-✅ TEACHER INFO: Name, ID, Program, Semester, Payment Proof
-✅ HARDCODED DATES: Current/upcoming term dates
-✅ PDF OUTPUT: Professional formatting
-✅ OFFICIAL LETTER: Enrollment letter with verification messaging
-✅ PAY STUB: Recent pay stub proof generated within the last 90 days
-✅ ALL 24 COUNTRIES: Complete global support
-✅ VERIFICATION READY: Perfect for SheerID verification
+PAY STUB GENERATOR FOR TEACHER VERIFICATION - FOCUSED ON PAYROLL PROOF
+✅ PAY STUB ONLY: Raw payroll document prioritized for SheerID
+✅ TEACHER ROLE: Positions constrained to Teacher / Instructor / Faculty
+✅ EMPLOYER: Pulled from institution JSON instead of hard-coding
+✅ CURRENT DATES: Automatically dated within the last 90 days
+✅ SCHOOL HEADER: Institution name shown prominently for easy reading
+✅ PDF OUTPUT: Professional formatting tailored to payroll needs
 """
 
 import sys
@@ -411,7 +406,7 @@ class ProfessionalReceiptGenerator:
         self.memory_cleanup_interval = 100
         
         self.stats = {
-            "receipts_generated": 0,
+            "pay_stubs_generated": 0,
             "students_saved": 0,
             "start_time": None
         }
@@ -453,16 +448,12 @@ class ProfessionalReceiptGenerator:
                     os.remove(self.students_file)
                 except Exception:
                     pass
-            
+
             print("🗑️  All previous data cleared!")
-            print("✅ PERFECT FORMAT: Professional receipt layout")
-            print("✅ INSTANT APPROVAL: Super-fast verification system")
-            print("✅ INSTITUTION: Full school name from JSON only")
-            print("✅ TEACHER INFO: Name, ID, Program, Semester")
-            print("✅ OFFICIAL LETTER: Enrollment verification ready")
-            print("✅ PAY STUB: Proof within last 90 days")
-            print("✅ HARDCODED DATES: Current/upcoming term dates")
-            print("✅ ALL 24 COUNTRIES: Complete global support")
+            print("✅ PAY STUB MODE: Payroll-only verification documents")
+            print("✅ INSTITUTION: Loaded from JSON files for each country")
+            print("✅ TEACHER ROLE: Teacher / Instructor / Faculty titles only")
+            print("✅ DATES: Always within the last 90 days")
             print("="*70)
         except Exception as e:
             print(f"⚠️  Warning: {e}")
@@ -545,7 +536,9 @@ class ProfessionalReceiptGenerator:
         if not self.all_colleges:
             print("❌ No colleges loaded from JSON! Using minimal fallback.")
             self.all_colleges = self.get_country_colleges(self.selected_country)
-        
+
+        self.set_fixed_institution()
+
         # Initialize Faker instances with English names
         try:
             self.faker_instances = [Faker('en_US') for _ in range(20)]
@@ -557,19 +550,8 @@ class ProfessionalReceiptGenerator:
             self.fixed_teacher_name = clean_name(f"{faker.first_name()} {faker.last_name()}")
             self.fixed_teacher_id = f"{faker.random_number(digits=8, fix_len=True)}"
 
-        if not self.fixed_college:
-            if self.all_colleges:
-                self.fixed_college = random.choice(self.all_colleges)
-            else:
-                fallback_config = COUNTRY_CONFIG.get(self.selected_country, COUNTRY_CONFIG['US'])
-                self.fixed_college = {
-                    'name': f"University of {fallback_config['name']}",
-                    'id': 'UNI001',
-                    'type': 'UNIVERSITY'
-                }
-
         print("✅ Generator ready!")
-        
+
         return True
 
     def get_faker(self):
@@ -578,6 +560,21 @@ class ProfessionalReceiptGenerator:
             faker = self.faker_instances[self.faker_index]
             self.faker_index = (self.faker_index + 1) % len(self.faker_instances)
             return faker
+
+    def set_fixed_institution(self):
+        """Pick a persistent institution from JSON data (or fallback)."""
+        if self.all_colleges:
+            self.fixed_college = self.all_colleges[0]
+            print(f"✅ Institution selected from JSON: {self.fixed_college['name']}")
+            return
+
+        fallback = self.get_country_colleges(self.selected_country)
+        if fallback:
+            self.fixed_college = fallback[0]
+            print(f"⚠️  Using fallback institution: {self.fixed_college['name']}")
+        else:
+            self.fixed_college = {'name': 'Unknown Institution', 'id': 'UNK001', 'type': 'INSTITUTION'}
+            print("⚠️  No institution data available; using placeholder.")
 
     def select_random_college(self):
         """Select a random college from JSON data only."""
@@ -588,30 +585,11 @@ class ProfessionalReceiptGenerator:
             return {'name': f'University of {config["name"]}', 'id': 'UNI001', 'type': 'UNIVERSITY'}
         return random.choice(self.all_colleges)
 
-    def generate_payment_data(self, country_config):
-        """Generate realistic payment data for tuition receipt."""
-        tuition_min, tuition_max = country_config['tuition_range']
-        fees_min, fees_max = country_config['fees_range']
-        
-        tuition_amount = random.randint(tuition_min, tuition_max)
-        fees_amount = random.randint(fees_min, fees_max)
-        total_amount = tuition_amount + fees_amount
-        
-        payment_methods = ["Credit Card", "Bank Transfer", "Online Payment", "Scholarship", "Financial Aid"]
-        transaction_id = f"TX{random.randint(100000, 999999)}"
-        
-        return {
-            "tuition_amount": tuition_amount,
-            "fees_amount": fees_amount,
-            "total_amount": total_amount,
-            "payment_method": random.choice(payment_methods),
-            "transaction_id": transaction_id,
-            "payment_date": datetime.now() - timedelta(days=random.randint(1, 30))
-        }
-
     def generate_pay_stub_data(self, country_config):
         """Generate recent pay stub details from within the last 90 days."""
-        fake = self.get_faker()
+        positions = ["Teacher", "Instructor", "Faculty"]
+        employer = self.fixed_college['name'] if self.fixed_college else "Unknown Institution"
+        position = random.choice(positions)
         pay_date = datetime.now() - timedelta(days=random.randint(1, 90))
         pay_period_start = pay_date - timedelta(days=14)
 
@@ -622,8 +600,8 @@ class ProfessionalReceiptGenerator:
         net_pay = gross_pay - deductions
 
         return {
-            "employer": fake.company(),
-            "position": fake.job(),
+            "employer": employer,
+            "position": position,
             "pay_date": pay_date,
             "pay_period_start": pay_period_start,
             "pay_period_end": pay_date,
@@ -698,8 +676,6 @@ class ProfessionalReceiptGenerator:
         
         programs = programs_by_country.get(self.selected_country, ["Computer Science", "Business", "Engineering"])
         
-        # Generate payment data
-        payment_data = self.generate_payment_data(config)
         pay_stub = self.generate_pay_stub_data(config)
 
         return {
@@ -713,7 +689,6 @@ class ProfessionalReceiptGenerator:
             "last_day": last_day,
             "exam_week": exam_week,
             "country_config": config,
-            "payment_data": payment_data,
             "pay_stub": pay_stub
         }
 
@@ -755,7 +730,17 @@ class ProfessionalReceiptGenerator:
             elements = []
             styles = getSampleStyleSheet()
             
-            # Header with institution name
+            # Header with prominent institution name
+            school_header_style = ParagraphStyle(
+                'SchoolHeaderStyle',
+                parent=styles['Heading1'],
+                fontSize=22,
+                textColor=self.colors['primary'],
+                alignment=1,
+                spaceAfter=6
+            )
+            elements.append(Paragraph(college['name'], school_header_style))
+
             header_style = ParagraphStyle(
                 'HeaderStyle',
                 parent=styles['Heading1'],
@@ -764,10 +749,10 @@ class ProfessionalReceiptGenerator:
                 alignment=1,
                 spaceAfter=10
             )
-            
+
             header = Paragraph("OFFICIAL TUITION RECEIPT", header_style)
             elements.append(header)
-            
+
             # Institution Name (from JSON only)
             uni_style = ParagraphStyle(
                 'UniversityStyle',
@@ -777,7 +762,7 @@ class ProfessionalReceiptGenerator:
                 alignment=1,
                 spaceAfter=20
             )
-            
+
             university = Paragraph(college['name'], uni_style)
             elements.append(university)
             
@@ -809,9 +794,24 @@ class ProfessionalReceiptGenerator:
             elements.append(student_info_title)
 
             # Teacher Info Table
+            teacher_name_style = ParagraphStyle(
+                'TeacherNameValue',
+                parent=styles['Heading3'],
+                fontSize=14,
+                leading=16,
+                textColor=self.colors['text_dark'],
+            )
+            teacher_id_style = ParagraphStyle(
+                'TeacherIdValue',
+                parent=styles['Normal'],
+                fontSize=12,
+                leading=14,
+                textColor=self.colors['text_dark'],
+            )
+
             student_data_table = [
-                ["Teacher Name:", student_data["full_name"]],
-                ["Teacher ID:", student_data["teacher_id"]],
+                ["Teacher Name:", Paragraph(f"<b>{student_data['full_name']}</b>", teacher_name_style)],
+                ["Teacher ID:", Paragraph(f"<b>{student_data['teacher_id']}</b>", teacher_id_style)],
                 ["Academic Program:", student_data["program"]],
                 ["Current Semester:", student_data["academic_term"]],
                 ["Status:", "Active Faculty"]
@@ -978,6 +978,16 @@ class ProfessionalReceiptGenerator:
             styles = getSampleStyleSheet()
             
             # Header
+            school_header_style = ParagraphStyle(
+                'SchoolHeaderStyle',
+                parent=styles['Heading1'],
+                fontSize=22,
+                textColor=self.colors['primary'],
+                alignment=1,
+                spaceAfter=6
+            )
+            elements.append(Paragraph(college['name'], school_header_style))
+
             header_style = ParagraphStyle(
                 'HeaderStyle',
                 parent=styles['Heading1'],
@@ -986,10 +996,10 @@ class ProfessionalReceiptGenerator:
                 alignment=1,
                 spaceAfter=10
             )
-            
+
             header = Paragraph("OFFICIAL CLASS SCHEDULE", header_style)
             elements.append(header)
-            
+
             # Institution Name
             uni_style = ParagraphStyle(
                 'UniversityStyle',
@@ -999,7 +1009,7 @@ class ProfessionalReceiptGenerator:
                 alignment=1,
                 spaceAfter=15
             )
-            
+
             university = Paragraph(college['name'], uni_style)
             elements.append(university)
             
@@ -1014,10 +1024,25 @@ class ProfessionalReceiptGenerator:
                 spaceAfter=8
             )
 
+            teacher_name_style = ParagraphStyle(
+                'TeacherNameValue',
+                parent=styles['Heading3'],
+                fontSize=14,
+                leading=16,
+                textColor=self.colors['text_dark'],
+            )
+            teacher_id_style = ParagraphStyle(
+                'TeacherIdValue',
+                parent=styles['Normal'],
+                fontSize=12,
+                leading=14,
+                textColor=self.colors['text_dark'],
+            )
+
             # Teacher Info Table
             student_data_table = [
-                ["Teacher Name:", student_data["full_name"]],
-                ["Teacher ID:", student_data["teacher_id"]],
+                ["Teacher Name:", Paragraph(f"<b>{student_data['full_name']}</b>", teacher_name_style)],
+                ["Teacher ID:", Paragraph(f"<b>{student_data['teacher_id']}</b>", teacher_id_style)],
                 ["Program:", student_data["program"]],
                 ["Semester:", student_data["academic_term"]],
                 ["Status:", "Active Faculty"]
@@ -1152,6 +1177,16 @@ class ProfessionalReceiptGenerator:
             elements = []
             styles = getSampleStyleSheet()
 
+            school_header_style = ParagraphStyle(
+                'LetterSchoolHeader',
+                parent=styles['Heading1'],
+                fontSize=22,
+                textColor=self.colors['primary'],
+                alignment=1,
+                spaceAfter=6
+            )
+            elements.append(Paragraph(college['name'], school_header_style))
+
             header_style = ParagraphStyle(
                 'LetterHeader',
                 parent=styles['Heading1'],
@@ -1256,6 +1291,16 @@ class ProfessionalReceiptGenerator:
             elements = []
             styles = getSampleStyleSheet()
 
+            school_header_style = ParagraphStyle(
+                'PayStubSchoolHeader',
+                parent=styles['Heading1'],
+                fontSize=22,
+                textColor=self.colors['primary'],
+                alignment=1,
+                spaceAfter=6
+            )
+            elements.append(Paragraph(college['name'], school_header_style))
+
             header_style = ParagraphStyle(
                 'PayStubHeader',
                 parent=styles['Heading1'],
@@ -1276,10 +1321,25 @@ class ProfessionalReceiptGenerator:
             )
             elements.append(Paragraph(pay_stub['employer'], employer_style))
 
+            name_style = ParagraphStyle(
+                'PayStubName',
+                parent=styles['Heading3'],
+                fontSize=14,
+                leading=16,
+                textColor=self.colors['text_dark'],
+            )
+            teacher_id_style = ParagraphStyle(
+                'PayStubTeacherId',
+                parent=styles['Normal'],
+                fontSize=12,
+                leading=14,
+                textColor=self.colors['text_dark'],
+            )
+
             meta_data = [
-                ["Employee Name", student_data['full_name']],
+                ["Employee Name", Paragraph(f"<b>{student_data['full_name']}</b>", name_style)],
                 ["Position", pay_stub['position']],
-                ["Teacher ID", teacher_id],
+                ["Teacher ID", Paragraph(f"<b>{teacher_id}</b>", teacher_id_style)],
                 ["Institution", college['name']],
                 ["Pay Date", self.format_date(pay_stub['pay_date'], config)],
                 ["Pay Period", f"{self.format_date(pay_stub['pay_period_start'], config)} to {self.format_date(pay_stub['pay_period_end'], config)}"]
@@ -1393,15 +1453,11 @@ class ProfessionalReceiptGenerator:
             
             student_data = self.generate_student_data(college)
                 
-            # Generate tuition receipt, class schedule, official letter, and pay stub
-            receipt_filename, _ = self.create_tuition_receipt_pdf(student_data)
-            schedule_filename = self.create_class_schedule_pdf(student_data)
-            letter_filename = self.create_official_letter_pdf(student_data)
             pay_stub_filename = self.create_pay_stub_pdf(student_data)
 
-            if all([receipt_filename, schedule_filename, letter_filename, pay_stub_filename]):
+            if pay_stub_filename:
                 self.save_student(student_data)
-                self.stats["receipts_generated"] += 1
+                self.stats["pay_stubs_generated"] += 1
                 return True
             return False
         except Exception as e:
@@ -1410,16 +1466,11 @@ class ProfessionalReceiptGenerator:
 
     def generate_bulk(self, quantity):
         config = COUNTRY_CONFIG[self.selected_country]
-        print(f"⚡ Generating {quantity} TUITION RECEIPTS + SCHEDULES for {config['flag']} {config['name']}")
-        print(f"✅ {len(self.all_colleges)} colleges loaded from JSON")
-        print("✅ INSTITUTION: Full school names from JSON only")
-        print("✅ TEACHER INFO: Name, ID, Program, Semester, Payment Proof")
-        print("✅ CURRENT DATES: Current/upcoming semester dates")
-        print("✅ OFFICIAL LETTER: Enrollment verification letter")
-        print("✅ PAY STUB: Income proof within last 90 days")
-        print("✅ TUITION RECEIPT: Professional receipt with payment details")
-        print("✅ CLASS SCHEDULE: Complete schedule with enrollment proof")
-        print("✅ SHEERID READY: Perfect for instant verification")
+        print(f"⚡ Generating {quantity} PAY STUBS for {config['flag']} {config['name']}")
+        print(f"✅ INSTITUTION: {self.fixed_college['name']}")
+        print("✅ TEACHER ROLE: Teacher / Instructor / Faculty only")
+        print("✅ PAY DATE: Within the last 90 days")
+        print("✅ SHEERID READY: Raw payroll document without student records")
         print("=" * 70)
 
         start = time.time()
@@ -1443,23 +1494,22 @@ class ProfessionalReceiptGenerator:
                         elapsed = time.time() - start
                         rate = i / elapsed if elapsed > 0 else 0
                         rate_per_min = rate * 60
-                        print(f"Progress: {i}/{quantity} ({(i/quantity*100):.1f}%) | Rate: {rate_per_min:.0f} sets/min")
+                        print(f"Progress: {i}/{quantity} ({(i/quantity*100):.1f}%) | Rate: {rate_per_min:.0f} stubs/min")
         
         duration = time.time() - start
         rate_per_min = (success / duration) * 60 if duration > 0 else 0
-        
+
         print("\n" + "="*70)
         print(f"✅ COMPLETE - {config['flag']} {config['name']}")
         print("="*70)
         print(f"⏱️  Time: {duration:.1f}s")
-        print(f"⚡ Speed: {rate_per_min:.0f} receipt+schedule sets/minute")
+        print(f"⚡ Speed: {rate_per_min:.0f} pay stubs/minute")
         print(f"✅ Success: {success}/{quantity}")
         print(f"📁 Folder: {self.receipts_dir}/")
         print(f"📄 Teachers: {self.students_file}")
-        print(f"✅ FORMAT: Professional PDF receipts + schedules")
-        print(f"✅ INSTITUTION: Names from JSON files only")
-        print(f"✅ DATES: Current/upcoming semester dates")
-        print(f"✅ SHEERID: Perfect for instant verification")
+        print(f"✅ FORMAT: Professional payroll PDF")
+        print(f"✅ EMPLOYER: {self.fixed_college['name']}")
+        print(f"✅ ROLE: Teacher / Instructor / Faculty")
         print("="*70)
 
     def interactive(self):
@@ -1471,12 +1521,11 @@ class ProfessionalReceiptGenerator:
             print(f"Country: {config['flag']} {config['name']}")
             print(f"Total Generated: {total}")
             print(f"Colleges from JSON: {len(self.all_colleges)}")
-            print(f"Mode: Professional receipts + schedules")
-            print(f"Institution: JSON names only")
-            print(f"Official Letter: Enrollment verification included")
+            print(f"Mode: Payroll-only pay stubs")
+            print(f"Institution: {self.fixed_college['name']}")
             print(f"Pay Stub: Generated within last 90 days")
-            print(f"Dates: Current/upcoming semester")
-            print(f"Verification: SheerID ready")
+            print(f"Role: Teacher / Instructor / Faculty")
+            print(f"Verification: SheerID ready (no student docs)")
             print(f"{'='*60}")
             
             user_input = input(f"\nQuantity (0 to exit): ").strip()
@@ -1495,22 +1544,18 @@ class ProfessionalReceiptGenerator:
                 continue
             
             self.generate_bulk(quantity)
-            total = self.stats["receipts_generated"]
+            total = self.stats["pay_stubs_generated"]
 
 def main():
     print("\n" + "="*70)
-    print("PROFESSIONAL TUITION RECEIPT GENERATOR - SHEERID VERIFICATION READY")
+    print("PAY STUB GENERATOR - TEACHER PAYROLL VERIFICATION READY")
     print("="*70)
-    print("✅ TUITION RECEIPT: Professional receipt with payment proof")
-    print("✅ CLASS SCHEDULE: Complete schedule with enrollment proof")
-    print("✅ INSTITUTION: Full school names from JSON only")
-    print("✅ TEACHER INFO: Name, ID, Program, Semester, Payment")
-    print("✅ OFFICIAL LETTER: Registrar-issued verification letter")
-    print("✅ PAY STUB: Recent proof within the last 90 days")
-    print("✅ CURRENT DATES: Current/upcoming semester dates")
+    print("✅ PAY STUB ONLY: Raw payroll file, no student documents")
+    print("✅ EMPLOYER: Loaded from institution JSON")
+    print("✅ ROLE: Teacher / Instructor / Faculty")
+    print("✅ PAY DATE: Within the last 90 days")
     print("✅ INSTANT APPROVAL: Super-fast verification system")
     print("✅ PERFECT FORMAT: Professional PDF layout")
-    print("✅ ALL 24 COUNTRIES: Complete global support")
     print("="*70)
     
     gen = ProfessionalReceiptGenerator()
@@ -1520,7 +1565,7 @@ def main():
     
     gen.interactive()
     
-    print("\n✅ FINISHED! All documents are SheerID verification ready!")
+    print("\n✅ FINISHED! Pay stubs are SheerID verification ready!")
 
 if __name__ == "__main__":
     try:
