@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-PROFESSIONAL TUITION RECEIPT GENERATOR WITH INSTANT APPROVAL LOOK - PERFECT FOR SHEERID
+PROFESSIONAL TUITION RECEIPT GENERATOR WITH INSTANT APPROVAL - PERFECT FOR SHEERID
 ✅ TUITION RECEIPT: Professional receipt with all required fields
 ✅ CLASS SCHEDULE: Complete schedule with enrollment proof
-✅ INSTANT APPROVAL: Auto-approve language for seamless flows
-✅ INSTITUTION NAME: Full school name from JSON only
+✅ INSTANT APPROVAL: Super-fast verification system
+✅ INSTITUTION NAME: Full school name from JSON only  
 ✅ STUDENT INFO: Name, ID, Program, Semester, Payment Proof
 ✅ HARDCODED DATES: Current/upcoming term dates
 ✅ PDF OUTPUT: Professional formatting
-✅ ALL 24 COUNTRIES + US TEACHER PAY SLIPS: Complete global support
+✅ ALL 24 COUNTRIES: Complete global support
 ✅ VERIFICATION READY: Perfect for SheerID verification
 """
 
@@ -34,7 +34,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.units import inch
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -396,7 +396,6 @@ class ProfessionalReceiptGenerator:
         self.students_file = "students.txt"
         self.selected_country = None
         self.all_colleges = []
-        self.teacher_mode = False
         
         self.faker_instances = []
         self.faker_lock = threading.Lock()
@@ -432,65 +431,6 @@ class ProfessionalReceiptGenerator:
         self.create_directories()
         self.clear_all_data()
 
-    def _color_for_school(self, school_name: str) -> tuple[int, int, int]:
-        """Derive a consistent color from the school name for logos."""
-        base = sum(ord(c) for c in school_name)
-        return (
-            80 + (base * 3) % 120,
-            80 + (base * 5) % 120,
-            120 + (base * 7) % 100,
-        )
-
-    def create_school_logo(self, school_name: str) -> str:
-        """Generate a simple shield-style logo using the school initials."""
-        initials = "".join(word[0].upper() for word in school_name.split()[:3]) or "S"
-        size = (140, 140)
-        bg_color = self._color_for_school(school_name)
-
-        img = Image.new("RGBA", size, (255, 255, 255, 0))
-        draw = ImageDraw.Draw(img)
-        draw.rounded_rectangle([0, 0, size[0], size[1]], radius=24, fill=bg_color)
-        draw.rectangle([16, 16, size[0]-16, size[1]-16], outline=(255, 255, 255, 220), width=3)
-
-        try:
-            font = ImageFont.truetype("DejaVuSans-Bold.ttf", 56)
-        except Exception:
-            font = ImageFont.load_default()
-
-        text_width, text_height = draw.textsize(initials, font=font)
-        draw.text(
-            ((size[0] - text_width) / 2, (size[1] - text_height) / 2 - 4),
-            initials,
-            font=font,
-            fill=(255, 255, 255, 255),
-        )
-
-        logo_path = os.path.join(self.receipts_dir, f"logo_{re.sub(r'[^A-Za-z0-9]', '_', school_name)[:40]}.png")
-        img.save(logo_path, format="PNG")
-        return logo_path
-
-    def create_registrar_signature(self, registrar_name: str, teacher_id: str) -> str:
-        """Create a quick script-style signature image for the registrar."""
-        width, height = 360, 120
-        img = Image.new("RGBA", (width, height), (255, 255, 255, 0))
-        draw = ImageDraw.Draw(img)
-
-        try:
-            script_font = ImageFont.truetype("DejaVuSerif-Italic.ttf", 34)
-        except Exception:
-            script_font = ImageFont.load_default()
-
-        text = registrar_name
-        text_width, text_height = draw.textsize(text, font=script_font)
-        draw.text(((width - text_width) / 2, (height - text_height) / 2 - 6), text, font=script_font, fill=(30, 58, 138))
-
-        # Add a light underline to mimic a hand signature line
-        draw.line([(40, height - 32), (width - 40, height - 32)], fill=(37, 99, 235), width=3)
-
-        sig_path = os.path.join(self.receipts_dir, f"signature_{teacher_id}.png")
-        img.save(sig_path, format="PNG")
-        return sig_path
-
     def create_directories(self):
         os.makedirs(self.receipts_dir, exist_ok=True)
 
@@ -508,24 +448,17 @@ class ProfessionalReceiptGenerator:
                     os.remove(self.students_file)
                 except Exception:
                     pass
-
+            
             print("🗑️  All previous data cleared!")
             print("✅ PERFECT FORMAT: Professional receipt layout")
-            print("✅ INSTANT APPROVAL: Auto-cleared verification language ready")
+            print("✅ INSTANT APPROVAL: Super-fast verification system") 
             print("✅ INSTITUTION: Full school name from JSON only")
             print("✅ STUDENT INFO: Name, ID, Program, Semester")
             print("✅ HARDCODED DATES: Current/upcoming term dates")
-            print("✅ ALL 24 COUNTRIES + US TEACHER PAY SLIPS: Complete global support")
+            print("✅ ALL 24 COUNTRIES: Complete global support")
             print("="*70)
         except Exception as e:
             print(f"⚠️  Warning: {e}")
-
-    def print_review_notice(self):
-        """Display instant-approval style messaging for seamless verification."""
-        print("⚡ Instant Approval")
-        print("Most requests are automatically cleared in seconds with AI-fast review copy.")
-        print("Stay here or receive an email confirmation right after instant approval.")
-        print("No waiting room messaging—just immediate success language for SheerID-ready docs.")
 
     def load_colleges(self):
         """Load colleges ONLY from JSON file - no hardcoded data."""
@@ -569,11 +502,11 @@ class ProfessionalReceiptGenerator:
         ]
 
     def select_country_and_load(self):
-        """Country selection interface with all 24 countries plus US teachers."""
-        print("\n🌍 COUNTRY SELECTION - 24 COUNTRIES AVAILABLE + US TEACHERS")
+        """Country selection interface with all 24 countries."""
+        print("\n🌍 COUNTRY SELECTION - 24 COUNTRIES AVAILABLE")
         print("=" * 70)
         countries = list(COUNTRY_CONFIG.keys())
-
+        
         for i in range(0, len(countries), 4):
             row = countries[i:i+4]
             line = ""
@@ -582,54 +515,38 @@ class ProfessionalReceiptGenerator:
                 idx = list(COUNTRY_CONFIG.keys()).index(country) + 1
                 line += f"{idx:2d}. {config['flag']} {config['name']:18} "
             print(line)
-        print(f"{len(countries)+1:2d}. 🇺🇸 United States (Teacher Pay Slips)")
         print("=" * 70)
-
+        
         country_list = list(COUNTRY_CONFIG.keys())
-        teacher_option = len(countries) + 1
-
+        
         while True:
             try:
-                choice = input("\nSelect country (1-24) or 25 for US teachers: ").strip()
-                if choice.isdigit():
-                    choice_num = int(choice)
-                    if 1 <= choice_num <= len(countries):
-                        self.teacher_mode = False
-                        self.selected_country = country_list[choice_num - 1]
-                        break
-                    if choice_num == teacher_option:
-                        self.teacher_mode = True
-                        self.selected_country = 'US'
-                        break
-                    print("❌ Please enter a number between 1 and 25")
+                choice = input("\nSelect country (1-24): ").strip()
+                if choice.isdigit() and 1 <= int(choice) <= 24:
+                    self.selected_country = country_list[int(choice) - 1]
+                    break
                 else:
-                    print("❌ Please enter a number between 1 and 25")
+                    print("❌ Please enter a number between 1 and 24")
             except (ValueError, IndexError):
                 print("❌ Invalid selection. Please try again.")
-
+        
         config = COUNTRY_CONFIG[self.selected_country]
         print(f"\n✅ Selected: {config['flag']} {config['name']} ({self.selected_country})")
-
-        if not self.teacher_mode:
-            self.all_colleges = self.load_colleges()
-
-            if not self.all_colleges:
-                print("❌ No colleges loaded from JSON! Using minimal fallback.")
-                self.all_colleges = self.get_country_colleges(self.selected_country)
-
+        
+        self.all_colleges = self.load_colleges()
+        
+        if not self.all_colleges:
+            print("❌ No colleges loaded from JSON! Using minimal fallback.")
+            self.all_colleges = self.get_country_colleges(self.selected_country)
+        
         # Initialize Faker instances with English names
         try:
             self.faker_instances = [Faker('en_US') for _ in range(20)]
         except:
             self.faker_instances = [Faker() for _ in range(20)]
-
-        if self.teacher_mode:
-            print("✅ Teacher pay slip generator ready!")
-        else:
-            print("✅ Generator ready!")
-
-        self.print_review_notice()
-
+            
+        print("✅ Generator ready!")
+        
         return True
 
     def get_faker(self):
@@ -675,7 +592,7 @@ class ProfessionalReceiptGenerator:
         first_name = fake.first_name()
         last_name = fake.last_name()
         full_name = clean_name(f"{first_name} {last_name}")
-        student_id = self.generate_student_style_id(fake)
+        student_id = f"{fake.random_number(digits=8, fix_len=True)}"
         
         # CURRENT/UPCOMING TERM DATES for SheerID verification
         current_date = datetime.now()
@@ -726,7 +643,7 @@ class ProfessionalReceiptGenerator:
         
         # Generate payment data
         payment_data = self.generate_payment_data(config)
-
+        
         return {
             "full_name": full_name,
             "student_id": student_id,
@@ -740,467 +657,6 @@ class ProfessionalReceiptGenerator:
             "country_config": config,
             "payment_data": payment_data
         }
-
-    def generate_student_style_id(self, faker_instance=None):
-        """Create an 8-digit identifier used for both students and teachers."""
-        faker_instance = faker_instance or self.get_faker()
-        return f"{faker_instance.random_number(digits=8, fix_len=True)}"
-
-    def generate_teacher_payment_data(self):
-        """Create realistic payment data for teacher pay slips."""
-        fake = self.get_faker()
-        base_salary = random.randint(48000, 92000)
-        bonus = random.randint(500, 3500)
-        tax = int(base_salary * 0.18)
-        retirement = int(base_salary * 0.05)
-        insurance = random.randint(800, 1800)
-        net_pay = base_salary + bonus - tax - retirement - insurance
-
-        recent_day_offset = random.randint(0, 89)
-        pay_date = datetime.now() - timedelta(days=recent_day_offset)
-        pay_period_end = pay_date
-        pay_period_start = pay_period_end - timedelta(days=29)
-
-        return {
-            "base_salary": base_salary,
-            "bonus": bonus,
-            "tax": tax,
-            "retirement": retirement,
-            "insurance": insurance,
-            "net_pay": net_pay,
-            "pay_period_start": pay_period_start.strftime('%B %d, %Y'),
-            "pay_period_end": pay_period_end.strftime('%B %d, %Y'),
-            "pay_date": pay_date.strftime('%B %d, %Y'),
-            "bank_account": f"****{fake.random_number(digits=4, fix_len=True)}"
-        }
-
-    def generate_us_teacher_headers(self, count: int = 25, school_name: str = "", student_id: str | None = None, *_ignored, **_kwargs):
-        """Generate teacher records with IDs aligned to students and pay slips."""
-        if self.selected_country != 'US':
-            raise ValueError("Teacher pay slips are only generated for the US configuration.")
-
-        school_name = school_name.strip()
-        teachers = []
-        for _ in range(count):
-            fake = self.get_faker()
-            synced_student_id = str(student_id).strip() if student_id else ""
-            if not synced_student_id.isdigit() or len(synced_student_id) != 8:
-                synced_student_id = self.generate_student_style_id(fake)
-            street = fake.street_address()
-            school_address = f"{street}, {fake.city()}, {fake.state_abbr()} {fake.zipcode()[:5]}"
-            domain_root = fake.unique.domain_word()
-            school_domain = f"{domain_root}.edu"
-            school_phone = f"({fake.random_int(200, 989)}) {fake.random_int(200, 999):03d}-{fake.random_int(1000, 9999):04d}"
-            teachers.append({
-                "teacher_name": clean_name(fake.name()),
-                "teacher_id": synced_student_id,
-                "school_name": school_name or fake.company(),
-                "school_address": school_address,
-                "school_phone": school_phone,
-                "school_email": f"registrar@{school_domain}",
-                "school_website": f"https://www.{school_domain}",
-                "academic_year": f"{datetime.now().year}-{datetime.now().year + 1}",
-                "registrar_name": clean_name(fake.name()),
-                "registrar_title": random.choice(["Registrar", "HR Manager", "HR Director"]),
-                "payment": self.generate_teacher_payment_data()
-            })
-
-        return teachers
-
-    def create_teacher_payslip_pdf(self, teacher_data):
-        """Create a teacher pay slip PDF that mirrors student ID formatting."""
-        filename = f"TEACHER_PAYSLIP_{teacher_data['teacher_id']}.pdf"
-        filepath = os.path.join(self.receipts_dir, filename)
-
-        doc = SimpleDocTemplate(
-            filepath,
-            pagesize=letter,
-            rightMargin=40,
-            leftMargin=40,
-            topMargin=40,
-            bottomMargin=20
-        )
-
-        elements = []
-        styles = getSampleStyleSheet()
-
-        header_style = ParagraphStyle(
-            'TeacherHeader',
-            parent=styles['Heading1'],
-            fontSize=20,
-            textColor=self.colors['primary'],
-            spaceAfter=12,
-            alignment=1,
-        )
-
-        school_style = ParagraphStyle(
-            'TeacherSchool',
-            parent=styles['Heading2'],
-            fontSize=16,
-            textColor=self.colors['secondary'],
-            alignment=1,
-            spaceAfter=14,
-        )
-
-        body_style = ParagraphStyle(
-            'TeacherBody',
-            parent=styles['Normal'],
-            fontSize=10,
-            leading=14,
-            textColor=self.colors['text_dark'],
-        )
-
-        title_style = ParagraphStyle(
-            'TeacherTitle',
-            parent=styles['Heading3'],
-            fontSize=13,
-            textColor=self.colors['primary'],
-            spaceAfter=8,
-        )
-
-        payment = teacher_data['payment']
-
-        elements.append(Paragraph("OFFICIAL TEACHER PAY SLIP", header_style))
-        elements.append(Paragraph(f"{teacher_data['school_name']}", school_style))
-
-        issued_info = Paragraph(
-            f"Pay Date: {payment['pay_date']} | Teacher ID: {teacher_data['teacher_id']}",
-            ParagraphStyle('TeacherMeta', parent=styles['Normal'], fontSize=9, textColor=self.colors['text_light'], alignment=1, spaceAfter=14)
-        )
-        elements.append(issued_info)
-
-        elements.append(Paragraph("Teacher Details", title_style))
-
-        info_table = Table([
-            ["Teacher Name:", teacher_data['teacher_name']],
-            ["Teacher ID:", teacher_data['teacher_id']],
-            ["School Name:", teacher_data['school_name']],
-            ["Pay Period:", f"{payment['pay_period_start']} - {payment['pay_period_end']}"],
-            ["Bank Account:", payment['bank_account']],
-        ], colWidths=[2*inch, 3.8*inch])
-
-        info_table.setStyle(TableStyle([
-            ('FONT', (0, 0), (-1, -1), 'Helvetica', 10),
-            ('BACKGROUND', (0, 0), (0, -1), self.colors['row_odd']),
-            ('BACKGROUND', (1, 0), (1, -1), colors.white),
-            ('TEXTCOLOR', (0, 0), (-1, -1), self.colors['text_dark']),
-            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('LINEBELOW', (0, 0), (-1, -1), 1, self.colors['border']),
-            ('BOX', (0, 0), (-1, -1), 1, self.colors['border']),
-            ('PADDING', (0, 0), (-1, -1), 8),
-        ]))
-
-        elements.append(info_table)
-        elements.append(Spacer(1, 16))
-
-        pay_table = Table([
-            ["Earnings", "Amount"],
-            ["Base Salary", self.format_currency(payment['base_salary'], COUNTRY_CONFIG['US'])],
-            ["Bonus", self.format_currency(payment['bonus'], COUNTRY_CONFIG['US'])],
-            ["Gross Pay", self.format_currency(payment['base_salary'] + payment['bonus'], COUNTRY_CONFIG['US'])],
-            ["Tax", self.format_currency(-payment['tax'], COUNTRY_CONFIG['US'])],
-            ["Retirement", self.format_currency(-payment['retirement'], COUNTRY_CONFIG['US'])],
-            ["Insurance", self.format_currency(-payment['insurance'], COUNTRY_CONFIG['US'])],
-            ["Net Pay", self.format_currency(payment['net_pay'], COUNTRY_CONFIG['US'])],
-        ], colWidths=[200, 230])
-
-        pay_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), self.colors['header_bg']),
-            ('TEXTCOLOR', (0, 0), (-1, 0), self.colors['white']),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), self.colors['row_odd']),
-            ('TEXTCOLOR', (0, 1), (-1, -1), self.colors['text_dark']),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('GRID', (0, 0), (-1, -1), 0.5, self.colors['border']),
-        ]))
-
-        elements.append(pay_table)
-
-        doc.build(elements)
-        return filename
-
-    def create_teacher_id_card(self, teacher_data):
-        """Create a compact teacher ID card that matches student-style IDs."""
-        card_width, card_height = 3.375 * inch, 2.125 * inch
-        filename = f"TEACHER_ID_{teacher_data['teacher_id']}.pdf"
-        filepath = os.path.join(self.receipts_dir, filename)
-
-        doc = SimpleDocTemplate(
-            filepath,
-            pagesize=(card_width, card_height),
-            rightMargin=14,
-            leftMargin=14,
-            topMargin=12,
-            bottomMargin=12
-        )
-
-        styles = getSampleStyleSheet()
-        elements = []
-
-        brand_style = ParagraphStyle(
-            'CardBrand',
-            parent=styles['Heading2'],
-            fontSize=11,
-            textColor=self.colors['white'],
-            alignment=0,
-            leading=13,
-        )
-
-        role_style = ParagraphStyle(
-            'CardRole',
-            parent=styles['Normal'],
-            fontSize=9,
-            textColor=self.colors['white'],
-            alignment=2,
-        )
-
-        label_style = ParagraphStyle(
-            'CardLabel',
-            parent=styles['Normal'],
-            fontSize=8,
-            textColor=self.colors['text_light'],
-            alignment=0,
-        )
-
-        value_style = ParagraphStyle(
-            'CardValue',
-            parent=styles['Normal'],
-            fontSize=9.5,
-            textColor=self.colors['text_dark'],
-            alignment=0,
-        )
-
-        badge_style = ParagraphStyle(
-            'CardBadge',
-            parent=styles['Heading3'],
-            fontSize=12,
-            textColor=self.colors['primary'],
-            alignment=1,
-            leading=14,
-        )
-
-        issued_date = datetime.now()
-        valid_thru = issued_date + timedelta(days=365)
-
-        brand_bar = Table(
-            [
-                [
-                    Paragraph(teacher_data['school_name'], brand_style),
-                    Paragraph("FACULTY IDENTIFICATION", role_style)
-                ]
-            ],
-            colWidths=[card_width * 0.58, card_width * 0.32],
-            style=TableStyle([
-                ('BACKGROUND', (0, 0), (-1, -1), self.colors['primary']),
-                ('TEXTCOLOR', (0, 0), (-1, -1), self.colors['white']),
-                ('LEFTPADDING', (0, 0), (-1, -1), 10),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-                ('TOPPADDING', (0, 0), (-1, -1), 6),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-            ])
-        )
-
-        id_badge = Table(
-            [
-                [Paragraph("Teacher ID", label_style)],
-                [Paragraph(teacher_data['teacher_id'], badge_style)]
-            ],
-            colWidths=[card_width - 28],
-            style=TableStyle([
-                ('BACKGROUND', (0, 0), (-1, -1), self.colors['header_bg']),
-                ('BOX', (0, 0), (-1, -1), 1, self.colors['border']),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('TOPPADDING', (0, 0), (-1, 0), 4),
-                ('BOTTOMPADDING', (0, 1), (-1, 1), 6),
-            ])
-        )
-
-        detail_table = Table(
-            [
-                [Paragraph("Name", label_style), Paragraph(clean_name(teacher_data['teacher_name']), value_style)],
-                [Paragraph("Issued", label_style), Paragraph(issued_date.strftime('%b %d, %Y'), value_style)],
-                [Paragraph("Valid Thru", label_style), Paragraph(valid_thru.strftime('%b %d, %Y'), value_style)],
-            ],
-            colWidths=[card_width * 0.32, card_width * 0.48],
-            style=TableStyle([
-                ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-                ('BOX', (0, 0), (-1, -1), 0.5, self.colors['border']),
-                ('INNERGRID', (0, 0), (-1, -1), 0.25, self.colors['border']),
-                ('LEFTPADDING', (0, 0), (-1, -1), 8),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-                ('TOPPADDING', (0, 0), (-1, -1), 4),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-            ])
-        )
-
-        elements.append(brand_bar)
-        elements.append(Spacer(1, 8))
-        elements.append(id_badge)
-        elements.append(Spacer(1, 10))
-        elements.append(detail_table)
-
-        doc.build(elements)
-        return filename
-
-    def create_teacher_official_letter(self, teacher_data):
-        """Generate an official employment letter for the teacher."""
-        filename = f"TEACHER_OFFICIAL_LETTER_{teacher_data['teacher_id']}.pdf"
-        filepath = os.path.join(self.receipts_dir, filename)
-
-        doc = SimpleDocTemplate(
-            filepath,
-            pagesize=letter,
-            rightMargin=54,
-            leftMargin=54,
-            topMargin=48,
-            bottomMargin=48
-        )
-
-        styles = getSampleStyleSheet()
-        elements = []
-
-        header_style = ParagraphStyle(
-            'LetterHeader',
-            parent=styles['Heading1'],
-            fontSize=16,
-            textColor=self.colors['primary'],
-            alignment=1,
-            spaceAfter=12
-        )
-
-        subheader_style = ParagraphStyle(
-            'LetterSubheader',
-            parent=styles['Heading2'],
-            fontSize=12,
-            textColor=self.colors['secondary'],
-            alignment=1,
-            spaceAfter=18
-        )
-
-        body_style = ParagraphStyle(
-            'LetterBody',
-            parent=styles['Normal'],
-            fontSize=11,
-            leading=16,
-            textColor=self.colors['text_dark'],
-            spaceAfter=14
-        )
-
-        meta_style = ParagraphStyle(
-            'LetterMeta',
-            parent=styles['Normal'],
-            fontSize=10,
-            leading=14,
-            textColor=self.colors['text_dark'],
-            spaceAfter=8
-        )
-
-        label_style = ParagraphStyle(
-            'LetterLabel',
-            parent=styles['Normal'],
-            fontSize=10,
-            leading=13,
-            textColor=self.colors['text_light'],
-        )
-
-        value_style = ParagraphStyle(
-            'LetterValue',
-            parent=styles['Normal'],
-            fontSize=11,
-            leading=14,
-            textColor=self.colors['text_dark'],
-        )
-
-        issued_date = datetime.now()
-        recent_pay_date = teacher_data['payment']['pay_date']
-
-        logo_path = self.create_school_logo(teacher_data['school_name'])
-        signature_path = self.create_registrar_signature(teacher_data['registrar_name'], teacher_data['teacher_id'])
-
-        header_table = Table(
-            [[RLImage(logo_path, width=64, height=64), Paragraph(teacher_data['school_name'], header_style)]],
-            colWidths=[70, 400],
-        )
-        header_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-        ]))
-
-        elements.append(header_table)
-        elements.append(Paragraph("Official Employment Verification", subheader_style))
-        elements.append(Spacer(1, 10))
-        elements.append(Paragraph(issued_date.strftime('%B %d, %Y'), meta_style))
-        elements.append(Spacer(1, 6))
-
-        letter_body = (
-            f"To whom it may concern,<br/><br/>"
-            f"This letter confirms that <b>{clean_name(teacher_data['teacher_name'])}</b> (Teacher ID: <b>{teacher_data['teacher_id']}</b>) "
-            f"is an active faculty member for the <b>{teacher_data['academic_year']}</b> academic year at "
-            f"{teacher_data['school_name']}. "
-            f"Their most recent pay stub was issued on {recent_pay_date}, which falls within the last 90 days, and this letter "
-            "is intended solely for employment verification purposes."
-        )
-
-        employment_details = (
-            f"Employment type: Full-Time Faculty<br/>"
-            f"Primary subject: Education<br/>"
-            f"Verification issued: {issued_date.strftime('%B %d, %Y')}"
-        )
-
-        contact_block = (
-            f"<b>School contact</b><br/>"
-            f"Address: {teacher_data['school_address']}<br/>"
-            f"Phone: {teacher_data['school_phone']}<br/>"
-            f"Email: {teacher_data['school_email']}<br/>"
-            f"Website: {teacher_data['school_website']}"
-        )
-
-        closing = (
-            "For any questions regarding this verification, please contact the registrar's office using the details above."
-        )
-
-        verification_table = Table(
-            [
-                [Paragraph("Faculty Status", label_style), Paragraph("Active - Verified", value_style)],
-                [Paragraph("Academic Year", label_style), Paragraph(teacher_data['academic_year'], value_style)],
-                [Paragraph("Teacher ID", label_style), Paragraph(teacher_data['teacher_id'], value_style)],
-            ],
-            colWidths=[150, 340],
-            style=TableStyle([
-                ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-                ('BOX', (0, 0), (-1, -1), 0.5, self.colors['border']),
-                ('INNERGRID', (0, 0), (-1, -1), 0.25, self.colors['border']),
-                ('LEFTPADDING', (0, 0), (-1, -1), 8),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-                ('TOPPADDING', (0, 0), (-1, -1), 6),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-            ])
-        )
-
-        elements.append(Paragraph(letter_body, body_style))
-        elements.append(Paragraph(employment_details, body_style))
-        elements.append(Spacer(1, 8))
-        elements.append(Paragraph(contact_block, body_style))
-        elements.append(Spacer(1, 12))
-        elements.append(Paragraph(closing, body_style))
-        elements.append(Spacer(1, 16))
-        elements.append(verification_table)
-        elements.append(Spacer(1, 20))
-        elements.append(Paragraph("Sincerely,", body_style))
-        elements.append(Spacer(1, 8))
-        elements.append(RLImage(signature_path, width=160, height=60))
-        elements.append(Paragraph(f"{teacher_data['registrar_name']}", body_style))
-        elements.append(Paragraph(f"{teacher_data['registrar_title']}, {teacher_data['school_name']}", body_style))
-        elements.append(Paragraph("Digitally signed by Registrar's Office", meta_style))
-
-        doc.build(elements)
-        return filename
 
     def format_currency(self, amount, country_config):
         """Format currency according to country preferences."""
@@ -1689,7 +1145,7 @@ class ProfessionalReceiptGenerator:
         print("✅ CURRENT DATES: Current/upcoming semester dates")
         print("✅ TUITION RECEIPT: Professional receipt with payment details")
         print("✅ CLASS SCHEDULE: Complete schedule with enrollment proof")
-        print("✅ SHEERID READY: Instant-style approval messaging")
+        print("✅ SHEERID READY: Perfect for instant verification")
         print("=" * 70)
 
         start = time.time()
@@ -1729,58 +1185,13 @@ class ProfessionalReceiptGenerator:
         print(f"✅ FORMAT: Professional PDF receipts + schedules")
         print(f"✅ INSTITUTION: Names from JSON files only")
         print(f"✅ DATES: Current/upcoming semester dates")
-        print(f"✅ SHEERID: Instant approval language active")
+        print(f"✅ SHEERID: Perfect for instant verification")
         print("="*70)
 
     def interactive(self):
         total = 0
         config = COUNTRY_CONFIG[self.selected_country]
-
-        if self.teacher_mode:
-            while True:
-                print(f"\n{'='*60}")
-                print("Mode: US Teacher Pay Slip Generator")
-                print("Country: 🇺🇸 United States")
-                print(f"Total Pay Slips Generated: {total}")
-                print(f"Output Folder: {self.receipts_dir}/")
-                print("Student-style IDs and pay slip layout mirror student receipts.")
-                print(f"{'='*60}")
-
-                school_name = input("Enter school name (leave blank to exit): ").strip()
-                if not school_name:
-                    break
-
-                user_input = input("Quantity of teacher pay slips (0 to cancel, blank for 25): ").strip()
-
-                if user_input == "0":
-                    continue
-
-                if user_input == "":
-                    quantity = 25
-                else:
-                    try:
-                        quantity = int(user_input)
-                    except Exception:
-                        print("❌ Enter a valid number")
-                        continue
-
-                if quantity < 1:
-                    print("❌ Enter a number greater than 0")
-                    continue
-
-                teachers = self.generate_us_teacher_headers(quantity, school_name)
-                for teacher in teachers:
-                    self.create_teacher_payslip_pdf(teacher)
-                    self.create_teacher_id_card(teacher)
-                    self.create_teacher_official_letter(teacher)
-
-                total += len(teachers)
-                print(
-                    f"✅ Generated {len(teachers)} teacher pay slips, ID cards, and official letters for {school_name} (Total: {total})"
-                )
-
-            return
-
+        
         while True:
             print(f"\n{'='*60}")
             print(f"Country: {config['flag']} {config['name']}")
@@ -1815,13 +1226,13 @@ def main():
     print("PROFESSIONAL TUITION RECEIPT GENERATOR - SHEERID VERIFICATION READY")
     print("="*70)
     print("✅ TUITION RECEIPT: Professional receipt with payment proof")
-    print("✅ CLASS SCHEDULE: Complete schedule with enrollment proof")
+    print("✅ CLASS SCHEDULE: Complete schedule with enrollment proof") 
     print("✅ INSTITUTION: Full school names from JSON only")
     print("✅ STUDENT INFO: Name, ID, Program, Semester, Payment")
     print("✅ CURRENT DATES: Current/upcoming semester dates")
-    print("✅ INSTANT APPROVAL: Auto-cleared language for seamless verification")
+    print("✅ INSTANT APPROVAL: Super-fast verification system")
     print("✅ PERFECT FORMAT: Professional PDF layout")
-    print("✅ ALL 24 COUNTRIES + US TEACHER PAY SLIPS: Complete global support")
+    print("✅ ALL 24 COUNTRIES: Complete global support")
     print("="*70)
     
     gen = ProfessionalReceiptGenerator()
