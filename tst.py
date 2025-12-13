@@ -3,8 +3,9 @@
 PROFESSIONAL TUITION RECEIPT GENERATOR WITH INSTANT APPROVAL - PERFECT FOR SHEERID
 ✅ TUITION RECEIPT: Professional receipt with all required fields
 ✅ CLASS SCHEDULE: Complete schedule with enrollment proof
+✅ TEACHER LETTER: Official letter with educator name and header
 ✅ INSTANT APPROVAL: Super-fast verification system
-✅ INSTITUTION NAME: Full school name from JSON only  
+✅ INSTITUTION NAME: Full school name from JSON only
 ✅ STUDENT INFO: Name, ID, Program, Semester, Payment Proof
 ✅ HARDCODED DATES: Current/upcoming term dates
 ✅ PDF OUTPUT: Professional formatting
@@ -640,20 +641,31 @@ class ProfessionalReceiptGenerator:
         }
         
         programs = programs_by_country.get(self.selected_country, ["Computer Science", "Business", "Engineering"])
-        
+
+        program = random.choice(programs)
+
+        teacher_titles = [
+            "Professor", "Associate Professor", "Assistant Professor",
+            "Senior Lecturer", "Lecturer", "Adjunct Instructor"
+        ]
+        teacher_name = clean_name(f"{random.choice(teacher_titles)} {fake.first_name()} {fake.last_name()}")
+        teacher_department = f"{program} Department"
+
         # Generate payment data
         payment_data = self.generate_payment_data(config)
-        
+
         return {
             "full_name": full_name,
             "student_id": student_id,
             "college": college,
-            "program": random.choice(programs),
+            "program": program,
             "academic_term": academic_term,
             "date_issued": date_issued,
             "first_day": first_day,
             "last_day": last_day,
             "exam_week": exam_week,
+            "teacher_name": teacher_name,
+            "teacher_department": teacher_department,
             "country_config": config,
             "payment_data": payment_data
         }
@@ -1069,6 +1081,161 @@ class ProfessionalReceiptGenerator:
             logger.error(f"Failed to create schedule PDF {filename}: {e}")
             return None
 
+    def create_teacher_letter_pdf(self, student_data):
+        """Create an official teacher letter with visible header and educator name."""
+        college = student_data['college']
+        student_id = student_data['student_id']
+        college_id = college['id']
+        config = student_data['country_config']
+
+        filename = f"TEACHER_LETTER_{student_id}_{college_id}.pdf"
+        filepath = os.path.join(self.receipts_dir, filename)
+
+        try:
+            doc = SimpleDocTemplate(
+                filepath,
+                pagesize=letter,
+                rightMargin=50,
+                leftMargin=50,
+                topMargin=50,
+                bottomMargin=30
+            )
+
+            elements = []
+            styles = getSampleStyleSheet()
+
+            header_style = ParagraphStyle(
+                'TeacherHeader',
+                parent=styles['Heading1'],
+                fontSize=20,
+                textColor=self.colors['primary'],
+                alignment=1,
+                spaceAfter=8
+            )
+
+            subheader_style = ParagraphStyle(
+                'TeacherSubheader',
+                parent=styles['Heading2'],
+                fontSize=14,
+                textColor=self.colors['secondary'],
+                alignment=1,
+                spaceAfter=16
+            )
+
+            elements.append(Paragraph("OFFICIAL TEACHER LETTER", header_style))
+            elements.append(Paragraph(f"{college['name']} • Faculty Assignment", subheader_style))
+
+            teacher_info_title = ParagraphStyle(
+                'TeacherInfoTitle',
+                parent=styles['Heading2'],
+                fontSize=13,
+                textColor=self.colors['primary'],
+                spaceAfter=6
+            )
+
+            elements.append(Paragraph("Educator Information", teacher_info_title))
+
+            teacher_table = Table([
+                ["Teacher Name:", student_data['teacher_name']],
+                ["Department:", student_data['teacher_department']],
+                ["Assignment Date:", self.format_date(student_data['date_issued'], config)],
+                ["Institution:", college['name']]
+            ], colWidths=[2*inch, 4*inch])
+
+            teacher_table.setStyle(TableStyle([
+                ('FONT', (0, 0), (-1, -1), 'Helvetica', 11),
+                ('BACKGROUND', (0, 0), (0, -1), self.colors['row_odd']),
+                ('BACKGROUND', (1, 0), (1, -1), colors.white),
+                ('TEXTCOLOR', (0, 0), (-1, -1), self.colors['text_dark']),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('BOX', (0, 0), (-1, -1), 1, self.colors['border']),
+                ('PADDING', (0, 0), (-1, -1), 8),
+            ]))
+
+            elements.append(teacher_table)
+            elements.append(Spacer(1, 14))
+
+            student_info_title = Paragraph("Student Assignment", teacher_info_title)
+            elements.append(student_info_title)
+
+            student_table = Table([
+                ["Student Name:", student_data['full_name']],
+                ["Student ID:", student_data['student_id']],
+                ["Program:", student_data['program']],
+                ["Term:", student_data['academic_term']]
+            ], colWidths=[2*inch, 4*inch])
+
+            student_table.setStyle(TableStyle([
+                ('FONT', (0, 0), (-1, -1), 'Helvetica', 11),
+                ('BACKGROUND', (0, 0), (0, -1), self.colors['row_even']),
+                ('BACKGROUND', (1, 0), (1, -1), colors.white),
+                ('TEXTCOLOR', (0, 0), (-1, -1), self.colors['text_dark']),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('BOX', (0, 0), (-1, -1), 1, self.colors['border']),
+                ('PADDING', (0, 0), (-1, -1), 8),
+            ]))
+
+            elements.append(student_table)
+            elements.append(Spacer(1, 18))
+
+            body_style = ParagraphStyle(
+                'TeacherBody',
+                parent=styles['BodyText'],
+                fontSize=11,
+                leading=15,
+                textColor=self.colors['text_dark'],
+                spaceAfter=10
+            )
+
+            body_text = (
+                f"This letter confirms that {student_data['teacher_name']} is the assigned educator for "
+                f"{student_data['full_name']} ({student_data['student_id']}) in the {student_data['program']} program. "
+                "The instructor will oversee course progression, attendance, and academic performance for the current term."
+            )
+            elements.append(Paragraph(body_text, body_style))
+
+            support_text = (
+                "Please direct any academic inquiries, verification requests, or progress updates to the educator listed above. "
+                "This letter serves as an official confirmation for institutional and verification purposes."
+            )
+            elements.append(Paragraph(support_text, body_style))
+
+            signature_style = ParagraphStyle(
+                'TeacherSignature',
+                parent=styles['Normal'],
+                fontSize=10,
+                textColor=self.colors['secondary'],
+                alignment=1,
+                spaceBefore=16
+            )
+
+            elements.append(Paragraph(f"Signed on {self.format_date(student_data['date_issued'], config)}", signature_style))
+            elements.append(Paragraph(student_data['teacher_name'], signature_style))
+            elements.append(Paragraph(student_data['teacher_department'], signature_style))
+
+            verification_style = ParagraphStyle(
+                'TeacherVerification',
+                parent=styles['Normal'],
+                fontSize=9,
+                textColor=self.colors['text_light'],
+                alignment=1,
+                spaceBefore=10
+            )
+
+            verification_text = (
+                f"OFFICIAL FACULTY LETTER • {college['name']} • Valid for teacher assignment verification."
+            )
+            elements.append(Paragraph(verification_text, verification_style))
+
+            doc.build(elements)
+            return filename
+
+        except Exception as e:
+            logger.error(f"Failed to create teacher letter PDF {filename}: {e}")
+            return None
+
     def generate_courses(self, program):
         """Generate realistic courses based on program."""
         base_courses = {
@@ -1126,8 +1293,9 @@ class ProfessionalReceiptGenerator:
             # Generate both tuition receipt and class schedule
             receipt_filename, _ = self.create_tuition_receipt_pdf(student_data)
             schedule_filename = self.create_class_schedule_pdf(student_data)
-            
-            if receipt_filename and schedule_filename:
+            teacher_letter_filename = self.create_teacher_letter_pdf(student_data)
+
+            if receipt_filename and schedule_filename and teacher_letter_filename:
                 self.save_student(student_data)
                 self.stats["receipts_generated"] += 1
                 return True
@@ -1138,13 +1306,14 @@ class ProfessionalReceiptGenerator:
 
     def generate_bulk(self, quantity):
         config = COUNTRY_CONFIG[self.selected_country]
-        print(f"⚡ Generating {quantity} TUITION RECEIPTS + SCHEDULES for {config['flag']} {config['name']}")
+        print(f"⚡ Generating {quantity} TUITION RECEIPTS + SCHEDULES + TEACHER LETTERS for {config['flag']} {config['name']}")
         print(f"✅ {len(self.all_colleges)} colleges loaded from JSON")
         print("✅ INSTITUTION: Full school names from JSON only")
         print("✅ STUDENT INFO: Name, ID, Program, Semester, Payment Proof")
         print("✅ CURRENT DATES: Current/upcoming semester dates")
         print("✅ TUITION RECEIPT: Professional receipt with payment details")
         print("✅ CLASS SCHEDULE: Complete schedule with enrollment proof")
+        print("✅ TEACHER LETTER: Official educator assignment with visible header")
         print("✅ SHEERID READY: Perfect for instant verification")
         print("=" * 70)
 
@@ -1178,11 +1347,11 @@ class ProfessionalReceiptGenerator:
         print(f"✅ COMPLETE - {config['flag']} {config['name']}")
         print("="*70)
         print(f"⏱️  Time: {duration:.1f}s")
-        print(f"⚡ Speed: {rate_per_min:.0f} receipt+schedule sets/minute")
+        print(f"⚡ Speed: {rate_per_min:.0f} document sets/minute")
         print(f"✅ Success: {success}/{quantity}")
         print(f"📁 Folder: {self.receipts_dir}/")
         print(f"📄 Students: {self.students_file}")
-        print(f"✅ FORMAT: Professional PDF receipts + schedules")
+        print(f"✅ FORMAT: Professional PDF receipts + schedules + teacher letters")
         print(f"✅ INSTITUTION: Names from JSON files only")
         print(f"✅ DATES: Current/upcoming semester dates")
         print(f"✅ SHEERID: Perfect for instant verification")
@@ -1197,7 +1366,7 @@ class ProfessionalReceiptGenerator:
             print(f"Country: {config['flag']} {config['name']}")
             print(f"Total Generated: {total}")
             print(f"Colleges from JSON: {len(self.all_colleges)}")
-            print(f"Mode: Professional receipts + schedules")
+            print(f"Mode: Professional receipts + schedules + teacher letters")
             print(f"Institution: JSON names only")
             print(f"Dates: Current/upcoming semester")
             print(f"Verification: SheerID ready")
@@ -1226,7 +1395,8 @@ def main():
     print("PROFESSIONAL TUITION RECEIPT GENERATOR - SHEERID VERIFICATION READY")
     print("="*70)
     print("✅ TUITION RECEIPT: Professional receipt with payment proof")
-    print("✅ CLASS SCHEDULE: Complete schedule with enrollment proof") 
+    print("✅ CLASS SCHEDULE: Complete schedule with enrollment proof")
+    print("✅ TEACHER LETTER: Official educator letter with visible header")
     print("✅ INSTITUTION: Full school names from JSON only")
     print("✅ STUDENT INFO: Name, ID, Program, Semester, Payment")
     print("✅ CURRENT DATES: Current/upcoming semester dates")
